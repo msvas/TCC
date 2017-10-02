@@ -27,8 +27,14 @@ double tx = 0, ty = 0, tz = 0;
 class Main {
 	public:
 		vector<Vector3> pairDistances;
+		float deltaAngle = 0.0f;
+		int xOrigin = -1;
+		float angle = 0; 
+		float lx = 0.0f, lz = -1.0f;
 
 		Main();
+		void mouseButton(int button, int state, int x, int y);
+		void Main::mouseMove(int x, int y);
 		int LoadImg(string imgName);
 		bool fileExists(string fileName);
 };
@@ -174,6 +180,36 @@ Main::Main() {
 	}*/
 }
 
+void Main::mouseButton(int button, int state, int x, int y) {
+
+	// only start motion if the left button is pressed
+	if (button == GLUT_LEFT_BUTTON) {
+
+		// when the button is released
+		if (state == GLUT_UP) {
+			angle += deltaAngle;
+			xOrigin = -1;
+		}
+		else {// state = GLUT_DOWN
+			xOrigin = x;
+		}
+	}
+}
+
+void Main::mouseMove(int x, int y) {
+
+	// this will only be true when the left button is down
+	if (xOrigin >= 0) {
+
+		// update deltaAngle
+		deltaAngle = (x - xOrigin) * 0.001f;
+
+		// update camera's direction
+		lx = sin(angle + deltaAngle);
+		lz = -cos(angle + deltaAngle);
+	}
+}
+
 bool Main::fileExists(string fileName)
 {
 	ifstream infile(fileName);
@@ -264,6 +300,15 @@ int main(int argc, char** argv) {
 	glutInitWindowPosition(0, 0);                // distance from the top-left screen
 	glutCreateWindow(argv[0]);    // message displayed on top bar window
 	glutDisplayFunc(displayMe);
+
+	glutIgnoreKeyRepeat(1);
+	glutKeyboardFunc(processNormalKeys);
+	glutSpecialFunc(pressKey);
+	glutSpecialUpFunc(releaseKey);
+
+	glutMouseFunc(base.mouseButton);
+	glutMotionFunc(base.mouseMove);
+
 
 	initGL(300, 300);
 	//base.LoadImg("test.png");
