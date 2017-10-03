@@ -23,18 +23,18 @@ struct Vector3
 };
 
 double tx = 0, ty = 0, tz = 0;
+float deltaAngle = 0.0f;
+float deltaMove = 0;
+int xOrigin = -1;
+float angle = 0;
+float lx = 0.0f, lz = -1.0f;
+float x = 0.0f, z = 5.0f;
 
 class Main {
 	public:
 		vector<Vector3> pairDistances;
-		float deltaAngle = 0.0f;
-		int xOrigin = -1;
-		float angle = 0; 
-		float lx = 0.0f, lz = -1.0f;
 
 		Main();
-		void mouseButton(int button, int state, int x, int y);
-		void Main::mouseMove(int x, int y);
 		int LoadImg(string imgName);
 		bool fileExists(string fileName);
 };
@@ -180,36 +180,6 @@ Main::Main() {
 	}*/
 }
 
-void Main::mouseButton(int button, int state, int x, int y) {
-
-	// only start motion if the left button is pressed
-	if (button == GLUT_LEFT_BUTTON) {
-
-		// when the button is released
-		if (state == GLUT_UP) {
-			angle += deltaAngle;
-			xOrigin = -1;
-		}
-		else {// state = GLUT_DOWN
-			xOrigin = x;
-		}
-	}
-}
-
-void Main::mouseMove(int x, int y) {
-
-	// this will only be true when the left button is down
-	if (xOrigin >= 0) {
-
-		// update deltaAngle
-		deltaAngle = (x - xOrigin) * 0.001f;
-
-		// update camera's direction
-		lx = sin(angle + deltaAngle);
-		lz = -cos(angle + deltaAngle);
-	}
-}
-
 bool Main::fileExists(string fileName)
 {
 	ifstream infile(fileName);
@@ -267,16 +237,60 @@ void drawImage(int translatex, int translatey) {
 	glEnd();
 }
 
+void computePos(float deltaMove) {
+
+	x += deltaMove * lx * 0.1f;
+	z += deltaMove * lz * 0.1f;
+}
+
+void mouseButton(int button, int state, int x, int y) {
+
+	// only start motion if the left button is pressed
+	if (button == GLUT_LEFT_BUTTON) {
+
+		// when the button is released
+		if (state == GLUT_UP) {
+			angle += deltaAngle;
+			xOrigin = -1;
+		}
+		else {// state = GLUT_DOWN
+			xOrigin = x;
+		}
+	}
+}
+
+void mouseMove(int x, int y) {
+
+	// this will only be true when the left button is down
+	if (xOrigin >= 0) {
+
+		// update deltaAngle
+		deltaAngle = (x - xOrigin) * 0.001f;
+
+		// update camera's direction
+		lx = sin(angle + deltaAngle);
+		lz = -cos(angle + deltaAngle);
+	}
+}
+
+
 void displayMe(void) {
 	Main base;
 	string baseName = "SimImg";
 	int imgID = 1;
+
+	computePos(deltaMove);
 
 	base.LoadImg(baseName + to_string(imgID) + ".png");
 	imgID++;
 	// Clear color and depth buffers
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glMatrixMode(GL_MODELVIEW);     // Operate on model-view matrix
+
+	glLoadIdentity();
+	gluLookAt(	x, 1.0f, z,
+				x + lx, 1.0f, z + lz,
+				0.0f, 1.0f, 0.0f);
 
 	/* Draw a quad */
 	drawImage(0, 0);
@@ -289,6 +303,34 @@ void displayMe(void) {
 	drawImage(base.pairDistances[0].x * 100, base.pairDistances[0].y * 100);
 
 	glutSwapBuffers();
+}
+
+void processNormalKeys(unsigned char key, int xx, int yy) {
+
+	if (key == 27)
+		exit(0);
+}
+
+void pressKey(int key, int xx, int yy) {
+
+	switch (key) {
+	case GLUT_KEY_UP: 
+		deltaMove = 0.5f;
+		break;
+	case GLUT_KEY_DOWN: 
+		deltaMove = -0.5f; 
+		break;
+	}
+}
+
+void releaseKey(int key, int x, int y) {
+
+	switch (key) {
+	case GLUT_KEY_UP:
+	case GLUT_KEY_DOWN: 
+		deltaMove = 0; 
+		break;
+	}
 }
 
 int main(int argc, char** argv) {
@@ -306,8 +348,8 @@ int main(int argc, char** argv) {
 	glutSpecialFunc(pressKey);
 	glutSpecialUpFunc(releaseKey);
 
-	glutMouseFunc(base.mouseButton);
-	glutMotionFunc(base.mouseMove);
+	glutMouseFunc(mouseButton);
+	glutMotionFunc(mouseMove);
 
 
 	initGL(300, 300);
