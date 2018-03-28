@@ -197,8 +197,8 @@ int Main::LoadImg(string imgName) {
 		glGenTextures(1, &texid);
 		glBindTexture(GL_TEXTURE_2D, texid);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image.cols, image.rows, 0, GL_BGR, GL_UNSIGNED_BYTE, image.data);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		image.release();
 	}
 
@@ -209,22 +209,77 @@ int Main::LoadImg(string imgName) {
 void initGL(int w, int h)
 {
 	glViewport(0, 0, w, h); // use a screen size of WIDTH x HEIGHT
-	glEnable(GL_TEXTURE_2D);     // Enable 2D texturing
+	glEnable(GL_DEPTH_TEST);
+	//glEnable(GL_LIGHTING);
 
-	glMatrixMode(GL_PROJECTION);     // Make a simple 2D projection on the entire window
-	glLoadIdentity();
-	glOrtho(0.0, w, h, 0.0, 0.0, 100.0);
+	//glMatrixMode(GL_PROJECTION);     // Make a simple 2D projection on the entire window
+	//glLoadIdentity();
+	//glOrtho(0.0, w, h, 0.0, 0.0, 100.0);
 
-	glMatrixMode(GL_MODELVIEW);    // Set the matrix mode to object modeling
+}
 
-	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-	glClearDepth(0.0f);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear the window
+void drawCube() {
+	//Multi-colored side - FRONT
+	glBegin(GL_POLYGON);
+
+	glColor3f(1.0, 0.0, 0.0);     glVertex3f(0.5, -0.5, -0.5);      // P1 is red
+	glColor3f(0.0, 1.0, 0.0);     glVertex3f(0.5, 0.5, -0.5);      // P2 is green
+	glColor3f(0.0, 0.0, 1.0);     glVertex3f(-0.5, 0.5, -0.5);      // P3 is blue
+	glColor3f(1.0, 0.0, 1.0);     glVertex3f(-0.5, -0.5, -0.5);      // P4 is purple
+
+	glEnd();
+
+	// White side - BACK
+	glBegin(GL_POLYGON);
+	glColor3f(1.0, 1.0, 1.0);
+	glVertex3f(0.5, -0.5, 0.5);
+	glVertex3f(0.5, 0.5, 0.5);
+	glVertex3f(-0.5, 0.5, 0.5);
+	glVertex3f(-0.5, -0.5, 0.5);
+	glEnd();
+
+	// Purple side - RIGHT
+	glBegin(GL_POLYGON);
+	glColor3f(1.0, 0.0, 1.0);
+	glVertex3f(0.5, -0.5, -0.5);
+	glVertex3f(0.5, 0.5, -0.5);
+	glVertex3f(0.5, 0.5, 0.5);
+	glVertex3f(0.5, -0.5, 0.5);
+	glEnd();
+
+	// Green side - LEFT
+	glBegin(GL_POLYGON);
+	glColor3f(0.0, 1.0, 0.0);
+	glVertex3f(-0.5, -0.5, 0.5);
+	glVertex3f(-0.5, 0.5, 0.5);
+	glVertex3f(-0.5, 0.5, -0.5);
+	glVertex3f(-0.5, -0.5, -0.5);
+	glEnd();
+
+	// Blue side - TOP
+	glBegin(GL_POLYGON);
+	glColor3f(0.0, 0.0, 1.0);
+	glVertex3f(0.5, 0.5, 0.5);
+	glVertex3f(0.5, 0.5, -0.5);
+	glVertex3f(-0.5, 0.5, -0.5);
+	glVertex3f(-0.5, 0.5, 0.5);
+	glEnd();
+
+	// Red side - BOTTOM
+	glBegin(GL_POLYGON);
+	glColor3f(1.0, 0.0, 0.0);
+	glVertex3f(0.5, -0.5, -0.5);
+	glVertex3f(0.5, -0.5, 0.5);
+	glVertex3f(-0.5, -0.5, 0.5);
+	glVertex3f(-0.5, -0.5, -0.5);
+	glEnd();
+
 }
 
 void drawImage(int translatex, int translatey) {
-	int min = 50;
-	int max = 150;
+	int min = -1;
+	int max = 1;
+	glEnable(GL_TEXTURE_2D);
 	glBegin(GL_QUADS);
 	glTexCoord2i(0, 0);
 	glVertex2i(min + translatex, min + translatey);
@@ -235,6 +290,22 @@ void drawImage(int translatex, int translatey) {
 	glTexCoord2i(1, 0);
 	glVertex2i(max + translatex, min + translatey);
 	glEnd();
+	glDisable(GL_TEXTURE_2D);
+}
+
+void drawQuad() {
+	glEnable(GL_TEXTURE_2D);
+	glBegin(GL_QUADS);
+	glTexCoord2i(0, 0);
+	glVertex2f(-0.5, -0.5);
+	glTexCoord2i(0, 1);
+	glVertex2f(-0.5, 0.5);
+	glTexCoord2i(1, 1);
+	glVertex2f(0.5, 0.5);
+	glTexCoord2i(1, 0);
+	glVertex2f(0.5, -0.5);
+	glEnd();
+	glDisable(GL_TEXTURE_2D);
 }
 
 void computePos(float deltaMove) {
@@ -242,37 +313,6 @@ void computePos(float deltaMove) {
 	x += deltaMove * lx * 0.1f;
 	z += deltaMove * lz * 0.1f;
 }
-
-void mouseButton(int button, int state, int x, int y) {
-
-	// only start motion if the left button is pressed
-	if (button == GLUT_LEFT_BUTTON) {
-
-		// when the button is released
-		if (state == GLUT_UP) {
-			angle += deltaAngle;
-			xOrigin = -1;
-		}
-		else {// state = GLUT_DOWN
-			xOrigin = x;
-		}
-	}
-}
-
-void mouseMove(int x, int y) {
-
-	// this will only be true when the left button is down
-	if (xOrigin >= 0) {
-
-		// update deltaAngle
-		deltaAngle = (x - xOrigin) * 0.001f;
-
-		// update camera's direction
-		lx = sin(angle + deltaAngle);
-		lz = -cos(angle + deltaAngle);
-	}
-}
-
 
 void displayMe(void) {
 	Main base;
@@ -283,14 +323,14 @@ void displayMe(void) {
 
 	base.LoadImg(baseName + to_string(imgID) + ".png");
 	imgID++;
+
 	// Clear color and depth buffers
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glMatrixMode(GL_MODELVIEW);     // Operate on model-view matrix
 
 	glLoadIdentity();
-	gluLookAt(	x, 1.0f, z,
-				x + lx, 1.0f, z + lz,
-				0.0f, 1.0f, 0.0f);
+	//gluLookAt(	x, 1.0f, z,
+	//			x + lx, 1.0f, z + lz,
+	//			0.0f, 1.0f, 0.0f);
 
 	/* Draw a quad */
 	drawImage(0, 0);
@@ -303,6 +343,12 @@ void displayMe(void) {
 	drawImage(base.pairDistances[0].x * 100, base.pairDistances[0].y * 100);
 
 	glutSwapBuffers();
+
+	//drawCube();
+	//glutSwapBuffers();
+
+	//drawQuad();
+	//glutSwapBuffers();
 }
 
 void processNormalKeys(unsigned char key, int xx, int yy) {
@@ -311,33 +357,12 @@ void processNormalKeys(unsigned char key, int xx, int yy) {
 		exit(0);
 }
 
-void pressKey(int key, int xx, int yy) {
-
-	switch (key) {
-	case GLUT_KEY_UP: 
-		deltaMove = 0.5f;
-		break;
-	case GLUT_KEY_DOWN: 
-		deltaMove = -0.5f; 
-		break;
-	}
-}
-
-void releaseKey(int key, int x, int y) {
-
-	switch (key) {
-	case GLUT_KEY_UP:
-	case GLUT_KEY_DOWN: 
-		deltaMove = 0; 
-		break;
-	}
-}
-
 int main(int argc, char** argv) {
 	Main base;
 
 	glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_SINGLE);
+	//glutInitDisplayMode(GLUT_SINGLE);
+	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
 	glutInitWindowSize(1366, 768);                    // window size
 	glutInitWindowPosition(0, 0);                // distance from the top-left screen
 	glutCreateWindow(argv[0]);    // message displayed on top bar window
@@ -345,12 +370,6 @@ int main(int argc, char** argv) {
 
 	glutIgnoreKeyRepeat(1);
 	glutKeyboardFunc(processNormalKeys);
-	glutSpecialFunc(pressKey);
-	glutSpecialUpFunc(releaseKey);
-
-	glutMouseFunc(mouseButton);
-	glutMotionFunc(mouseMove);
-
 
 	initGL(300, 300);
 	//base.LoadImg("test.png");
