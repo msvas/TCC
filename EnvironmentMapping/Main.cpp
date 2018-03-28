@@ -30,9 +30,13 @@ float angle = 0;
 float lx = 0.0f, lz = -1.0f;
 float x = 0.0f, z = 5.0f;
 
+int imagesTotal = 6;
+
 class Main {
 	public:
 		vector<Vector3> pairDistances;
+		float sizePerImg = 0;
+		float sizeX, sizeY;
 
 		Main();
 		int LoadImg(string imgName);
@@ -48,7 +52,11 @@ Main::Main() {
 	string baseName = "SimImg";
 	int imgID = 1;
 
+	sizePerImg = (float) 2.0 / imagesTotal;
+
 	image2 = imread(baseName + to_string(imgID) + ".png", 0);
+	sizeX = image2.cols;
+	sizeY = image2.rows;
 	while (fileExists(baseName + to_string(imgID) + ".png")) {
 		image1 = image2;
 		imgID += 1;
@@ -209,7 +217,7 @@ int Main::LoadImg(string imgName) {
 void initGL(int w, int h)
 {
 	glViewport(0, 0, w, h); // use a screen size of WIDTH x HEIGHT
-	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_NEVER);
 	//glEnable(GL_LIGHTING);
 
 	//glMatrixMode(GL_PROJECTION);     // Make a simple 2D projection on the entire window
@@ -276,19 +284,17 @@ void drawCube() {
 
 }
 
-void drawImage(int translatex, int translatey) {
-	int min = -1;
-	int max = 1;
+void drawImage(int translatex, int translatey, float min = -1, float max = 1, float order = 0) {
 	glEnable(GL_TEXTURE_2D);
 	glBegin(GL_QUADS);
 	glTexCoord2i(0, 0);
-	glVertex2i(min + translatex, min + translatey);
+	glVertex3f(min + translatex, min + translatey, order);
 	glTexCoord2i(0, 1);
-	glVertex2i(min + translatex, max + translatey);
+	glVertex3f(min + translatex, max + translatey, order);
 	glTexCoord2i(1, 1);
-	glVertex2i(max + translatex, max + translatey);
+	glVertex3f(max + translatex, max + translatey, order);
 	glTexCoord2i(1, 0);
-	glVertex2i(max + translatex, min + translatey);
+	glVertex3f(max + translatex, min + translatey, order);
 	glEnd();
 	glDisable(GL_TEXTURE_2D);
 }
@@ -318,8 +324,13 @@ void displayMe(void) {
 	Main base;
 	string baseName = "SimImg";
 	int imgID = 1;
+	float min = -1, max = 1;
+	float order = 0;
 
 	computePos(deltaMove);
+
+	min = -0.5;
+	max = min + base.sizePerImg;
 
 	base.LoadImg(baseName + to_string(imgID) + ".png");
 	imgID++;
@@ -333,16 +344,22 @@ void displayMe(void) {
 	//			0.0f, 1.0f, 0.0f);
 
 	/* Draw a quad */
-	drawImage(0, 0);
+	drawImage(0, 0, min, max, order);
+	//glutSwapBuffers();
 
-	glutSwapBuffers();
+	//min = max;
+	//max = min + base.sizePerImg;
 
 	base.LoadImg(baseName + to_string(imgID) + ".png");
 	imgID++;
 
-	drawImage(base.pairDistances[0].x * 100, base.pairDistances[0].y * 100);
-
+	//drawImage(base.pairDistances[0].x, base.pairDistances[0].y, min, max);
+	order += 0.5;
+	drawImage(0, 0, min, max, order);
 	glutSwapBuffers();
+
+	min = max;
+	max = min + base.sizePerImg;
 
 	//drawCube();
 	//glutSwapBuffers();
