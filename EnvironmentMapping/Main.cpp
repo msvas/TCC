@@ -321,37 +321,45 @@ void computePos(float deltaMove) {
 
 void displayMe(void) {
 	Main base;
-	string baseName = "shapes";
+	string baseName = "coala";
 	string format = ".jpg";
 	int imgID = 2;
 	float min = -1, max = 1;
 	float order = 0;
+	float originX = 0, originY = 0;
 
 	computePos(deltaMove);
+
 	base.Compare(baseName + to_string(imgID) + format, baseName + to_string(imgID + 1) + format);
 
 	min = -0.5;
 	max = min + base.sizePerImg;
 
 	base.LoadImg(baseName + to_string(imgID) + format);
-	imgID++;
 
-	// Clear color and depth buffers
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
 	glLoadIdentity();
-	drawImage(0, 0, min, max, order);
-	//glutSwapBuffers();
 
-	base.LoadImg(baseName + to_string(imgID) + format);
+	drawImage(originX, originY, min, max, order);
+
 	imgID++;
+	while (base.fileExists(baseName + to_string(imgID) + format)) {
+		base.LoadImg(baseName + to_string(imgID) + format);
 
-	order += 1;
-	drawImage(base.pairDistances[0].x * base.sizePerImg, -(base.pairDistances[0].y * base.sizePerImg), min, max, order);
+		originX += base.pairDistances[0].x;// *base.sizePerImg;
+		originY -= base.pairDistances[0].y;// *base.sizePerImg;
+
+		order += 1;
+
+		drawImage(originX, originY, min, max, order);
+
+		if (base.fileExists(baseName + to_string(imgID + 1) + format))
+			base.Compare(baseName + to_string(imgID) + format, baseName + to_string(imgID + 1) + format);
+
+		imgID++;
+	}
+
 	glutSwapBuffers();
-
-	min = max;
-	max = min + base.sizePerImg;
 
 	//drawCube();
 	//glutSwapBuffers();
