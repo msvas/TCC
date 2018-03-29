@@ -41,29 +41,58 @@ class Main {
 		Main();
 		int LoadImg(string imgName);
 		bool fileExists(string fileName);
+		bool Compare(string img1, string img2);
 };
 
 
-Main::Main() {	
+Main::Main() {			
+	int key = (waitKey(0) & 0xFF);
+	/*while (key != 'q') {
+		key = (waitKey(0) & 0xFF);
+	}*/
+}
+
+bool Main::fileExists(string fileName)
+{
+	ifstream infile(fileName);
+	return infile.good();
+}
+
+int Main::LoadImg(string imgName) {
+	Mat image = imread(imgName);
+	GLuint texid;
+
+	if (image.empty()) {
+		cout << "image empty" << endl;
+		return 0;
+	}
+	else {
+		glGenTextures(1, &texid);
+		glBindTexture(GL_TEXTURE_2D, texid);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image.cols, image.rows, 0, GL_BGR, GL_UNSIGNED_BYTE, image.data);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		image.release();
+	}
+
+	return 1;
+}
+
+bool Main::Compare(string img1, string img2) {
 	Mat image1, outImg1, image2, outImg2;		//Create Matrix to store images
 	vector<KeyPoint> keypoints1, keypoints2;	//Key points to be found on both images
 	Mat descriptors1, descriptors2;
 	int minHessian = 400;
-	string baseName = "SimImg";
-	int imgID = 1;
 
 	sizePerImg = (float) 2.0 / imagesTotal;
 
-	image2 = imread(baseName + to_string(imgID) + ".png", 0);
-	sizeX = image2.cols;
-	sizeY = image2.rows;
-	while (fileExists(baseName + to_string(imgID) + ".png")) {
-		image1 = image2;
-		imgID += 1;
+	if (fileExists(img1) && fileExists(img2)) {
+		image1 = imread(img1, 0);
+		image2 = imread(img2, 0);
 
-		image2 = imread(baseName + to_string(imgID) + ".png", 0);
-		imgID += 1;
-		
+		sizeX = image1.cols;
+		sizeY = image1.rows;
+
 		Ptr<SURF> extractor = SURF::create(minHessian);
 		extractor->detect(image1, keypoints1);
 		extractor->detect(image2, keypoints2);
@@ -75,7 +104,6 @@ Main::Main() {
 		extractor->compute(image2, keypoints2, descriptors2);
 
 		cout << descriptors1.rows << " " << descriptors2.rows << endl;
-		//cout << "Oi";
 
 		//namedWindow("SURF detector img1");
 		//imshow("SURF detector img1", outImg1);
@@ -181,36 +209,7 @@ Main::Main() {
 		tz = t.at<double>(2);
 
 	}
-		
-	int key = (waitKey(0) & 0xFF);
-	/*while (key != 'q') {
-		key = (waitKey(0) & 0xFF);
-	}*/
-}
-
-bool Main::fileExists(string fileName)
-{
-	ifstream infile(fileName);
-	return infile.good();
-}
-
-int Main::LoadImg(string imgName) {
-	Mat image = imread(imgName);
-	GLuint texid;
-
-	if (image.empty()) {
-		cout << "image empty" << endl;
-	}
-	else {
-		glGenTextures(1, &texid);
-		glBindTexture(GL_TEXTURE_2D, texid);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image.cols, image.rows, 0, GL_BGR, GL_UNSIGNED_BYTE, image.data);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		image.release();
-	}
-
-	return 1;
+	return 0;
 }
 
 /* Initialize OpenGL Graphics */
@@ -284,17 +283,17 @@ void drawCube() {
 
 }
 
-void drawImage(int translatex, int translatey, float min = -1, float max = 1, float order = 0) {
+void drawImage(float translatex, float translatey, float min = -1, float max = 1, float order = 0) {
 	glEnable(GL_TEXTURE_2D);
 	glBegin(GL_QUADS);
 	glTexCoord2i(0, 0);
-	glVertex3f(min + translatex, min + translatey, order);
-	glTexCoord2i(0, 1);
 	glVertex3f(min + translatex, max + translatey, order);
+	glTexCoord2i(0, 1);
+	glVertex3f(min + translatex, min + translatey, order);
 	glTexCoord2i(1, 1);
-	glVertex3f(max + translatex, max + translatey, order);
-	glTexCoord2i(1, 0);
 	glVertex3f(max + translatex, min + translatey, order);
+	glTexCoord2i(1, 0);
+	glVertex3f(max + translatex, max + translatey, order);
 	glEnd();
 	glDisable(GL_TEXTURE_2D);
 }
@@ -322,40 +321,33 @@ void computePos(float deltaMove) {
 
 void displayMe(void) {
 	Main base;
-	string baseName = "SimImg";
-	int imgID = 1;
+	string baseName = "shapes";
+	string format = ".jpg";
+	int imgID = 2;
 	float min = -1, max = 1;
 	float order = 0;
 
 	computePos(deltaMove);
+	base.Compare(baseName + to_string(imgID) + format, baseName + to_string(imgID + 1) + format);
 
 	min = -0.5;
 	max = min + base.sizePerImg;
 
-	base.LoadImg(baseName + to_string(imgID) + ".png");
+	base.LoadImg(baseName + to_string(imgID) + format);
 	imgID++;
 
 	// Clear color and depth buffers
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	glLoadIdentity();
-	//gluLookAt(	x, 1.0f, z,
-	//			x + lx, 1.0f, z + lz,
-	//			0.0f, 1.0f, 0.0f);
-
-	/* Draw a quad */
 	drawImage(0, 0, min, max, order);
 	//glutSwapBuffers();
 
-	//min = max;
-	//max = min + base.sizePerImg;
-
-	base.LoadImg(baseName + to_string(imgID) + ".png");
+	base.LoadImg(baseName + to_string(imgID) + format);
 	imgID++;
 
-	//drawImage(base.pairDistances[0].x, base.pairDistances[0].y, min, max);
-	order += 0.5;
-	drawImage(0, 0, min, max, order);
+	order += 1;
+	drawImage(base.pairDistances[0].x * base.sizePerImg, -(base.pairDistances[0].y * base.sizePerImg), min, max, order);
 	glutSwapBuffers();
 
 	min = max;
