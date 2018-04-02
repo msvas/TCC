@@ -37,6 +37,7 @@ class Main {
 		vector<Vector3> pairDistances;
 		float sizePerImg = 0;
 		float sizeX, sizeY;
+		std::list<GLuint> textures;
 
 		Main();
 		int LoadImg(string imgName);
@@ -61,13 +62,18 @@ bool Main::fileExists(string fileName)
 int Main::LoadImg(string imgName) {
 	Mat image = imread(imgName);
 	GLuint texid;
+	int count;
+
+	textures.push_back(texid);
+	count = textures.size() - 1;
 
 	if (image.empty()) {
 		cout << "image empty" << endl;
 		return 0;
 	}
 	else {
-		glGenTextures(1, &texid);
+		//glGenTextures(1, &texid);
+		glActiveTexture(GL_TEXTURE0 + count);
 		glBindTexture(GL_TEXTURE_2D, texid);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image.cols, image.rows, 0, GL_BGR, GL_UNSIGNED_BYTE, image.data);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -298,17 +304,17 @@ void drawImage(float translatex, float translatey, float min = -1, float max = 1
 	glDisable(GL_TEXTURE_2D);
 }
 
-void drawQuad() {
+void drawQuad(float min = -0.5, float max = 0.5) {
 	glEnable(GL_TEXTURE_2D);
 	glBegin(GL_QUADS);
 	glTexCoord2i(0, 0);
-	glVertex2f(-0.5, -0.5);
+	glVertex2f(min, min);
 	glTexCoord2i(0, 1);
-	glVertex2f(-0.5, 0.5);
+	glVertex2f(min, max);
 	glTexCoord2i(1, 1);
-	glVertex2f(0.5, 0.5);
+	glVertex2f(max, max);
 	glTexCoord2i(1, 0);
-	glVertex2f(0.5, -0.5);
+	glVertex2f(max, min);
 	glEnd();
 	glDisable(GL_TEXTURE_2D);
 }
@@ -339,15 +345,15 @@ void displayMe(void) {
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glLoadIdentity();
-
+	/*
 	drawImage(originX, originY, min, max, order);
 
 	imgID++;
 	while (base.fileExists(baseName + to_string(imgID) + format)) {
 		base.LoadImg(baseName + to_string(imgID) + format);
 
-		originX += base.pairDistances[0].x;// *base.sizePerImg;
-		originY -= base.pairDistances[0].y;// *base.sizePerImg;
+		originX += base.pairDistances[0].x * base.sizePerImg;
+		originY -= base.pairDistances[0].y * base.sizePerImg;
 
 		order += 1;
 
@@ -359,13 +365,22 @@ void displayMe(void) {
 		imgID++;
 	}
 
-	glutSwapBuffers();
+	glutSwapBuffers();*/
 
 	//drawCube();
 	//glutSwapBuffers();
 
-	//drawQuad();
-	//glutSwapBuffers();
+	drawQuad(-0.5, 0);
+
+	base.LoadImg(baseName + to_string(imgID + 1) + format);
+
+	drawQuad(0, 0.5);
+
+	base.LoadImg(baseName + to_string(imgID + 2) + format);
+
+	drawQuad(0.5, 1);
+
+	glutSwapBuffers();
 }
 
 void processNormalKeys(unsigned char key, int xx, int yy) {
