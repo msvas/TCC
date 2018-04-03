@@ -43,6 +43,7 @@ class Main {
 		int LoadImg(string imgName);
 		bool fileExists(string fileName);
 		bool Compare(string img1, string img2);
+		GLuint popTex();
 };
 
 
@@ -62,18 +63,16 @@ bool Main::fileExists(string fileName)
 int Main::LoadImg(string imgName) {
 	Mat image = imread(imgName);
 	GLuint texid;
-	int count;
 
 	textures.push_back(texid);
-	count = textures.size() - 1;
 
 	if (image.empty()) {
 		cout << "image empty" << endl;
 		return 0;
 	}
 	else {
-		//glGenTextures(1, &texid);
-		glActiveTexture(GL_TEXTURE0 + count);
+		cout << "loading image " << imgName << endl;
+		glGenTextures(1, &texid);
 		glBindTexture(GL_TEXTURE_2D, texid);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image.cols, image.rows, 0, GL_BGR, GL_UNSIGNED_BYTE, image.data);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -89,6 +88,10 @@ bool Main::Compare(string img1, string img2) {
 	vector<KeyPoint> keypoints1, keypoints2;	//Key points to be found on both images
 	Mat descriptors1, descriptors2;
 	int minHessian = 400;
+
+	cout << "Comparing " << img1 << " to " << img2 << endl;
+
+	pairDistances.clear();
 
 	sizePerImg = (float) 2.0 / imagesTotal;
 
@@ -218,6 +221,13 @@ bool Main::Compare(string img1, string img2) {
 	return 0;
 }
 
+GLuint Main::popTex() {
+	GLuint tex;
+	tex = textures.front();
+	textures.pop_front();
+	return tex;
+}
+
 /* Initialize OpenGL Graphics */
 void initGL(int w, int h)
 {
@@ -289,9 +299,12 @@ void drawCube() {
 
 }
 
-void drawImage(float translatex, float translatey, float min = -1, float max = 1, float order = 0) {
+void drawImage(GLuint texture, float translatex, float translatey, float min = -1, float max = 1, float order = 0) {
+	cout << "Drawing image " << order << " with " << translatex << ", " << translatey << ", " << min << ", " << max << endl;
+
 	glEnable(GL_TEXTURE_2D);
 	glBegin(GL_QUADS);
+	glBindTexture(GL_TEXTURE_2D, texture);
 	glTexCoord2i(0, 0);
 	glVertex3f(min + translatex, max + translatey, order);
 	glTexCoord2i(0, 1);
@@ -304,9 +317,10 @@ void drawImage(float translatex, float translatey, float min = -1, float max = 1
 	glDisable(GL_TEXTURE_2D);
 }
 
-void drawQuad(float min = -0.5, float max = 0.5) {
+void drawQuad(GLuint texture, float min = -0.5, float max = 0.5) {
 	glEnable(GL_TEXTURE_2D);
 	glBegin(GL_QUADS);
+	glBindTexture(GL_TEXTURE_2D, texture);
 	glTexCoord2i(0, 0);
 	glVertex2f(min, min);
 	glTexCoord2i(0, 1);
@@ -329,7 +343,7 @@ void displayMe(void) {
 	Main base;
 	string baseName = "coala";
 	string format = ".jpg";
-	int imgID = 2;
+	int imgID = 1;
 	float min = -1, max = 1;
 	float order = 0;
 	float originX = 0, originY = 0;
@@ -345,42 +359,40 @@ void displayMe(void) {
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glLoadIdentity();
-	/*
-	drawImage(originX, originY, min, max, order);
+
+	drawImage(base.popTex(), originX, originY, min, max, order);
 
 	imgID++;
 	while (base.fileExists(baseName + to_string(imgID) + format)) {
-		base.LoadImg(baseName + to_string(imgID) + format);
-
-		originX += base.pairDistances[0].x * base.sizePerImg;
-		originY -= base.pairDistances[0].y * base.sizePerImg;
+		originX = base.pairDistances[0].x;// *base.sizePerImg;
+		originY = base.pairDistances[0].y;// *base.sizePerImg;
 
 		order += 1;
 
-		drawImage(originX, originY, min, max, order);
+		base.LoadImg(baseName + to_string(imgID) + format);
+		drawImage(base.popTex(), originX, originY, min, max, order);
 
 		if (base.fileExists(baseName + to_string(imgID + 1) + format))
 			base.Compare(baseName + to_string(imgID) + format, baseName + to_string(imgID + 1) + format);
+		//it is not working because this compare function is between the drawing calls
 
 		imgID++;
 	}
 
-	glutSwapBuffers();*/
+	glutSwapBuffers();
 
 	//drawCube();
 	//glutSwapBuffers();
 
-	drawQuad(-0.5, 0);
-
+	/*
+	drawQuad(base.popTex(), -0.5, -0.1);
 	base.LoadImg(baseName + to_string(imgID + 1) + format);
-
-	drawQuad(0, 0.5);
-
+	drawQuad(base.popTex(), -0.2, 0.2);
 	base.LoadImg(baseName + to_string(imgID + 2) + format);
-
-	drawQuad(0.5, 1);
-
+	drawQuad(base.popTex(), 0.1, 0.5);
 	glutSwapBuffers();
+	*/
+	
 }
 
 void processNormalKeys(unsigned char key, int xx, int yy) {
@@ -402,6 +414,8 @@ int main(int argc, char** argv) {
 
 	glutIgnoreKeyRepeat(1);
 	glutKeyboardFunc(processNormalKeys);
+
+	glewInit();
 
 	initGL(300, 300);
 	//base.LoadImg("test.png");
