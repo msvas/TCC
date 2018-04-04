@@ -339,6 +339,22 @@ void computePos(float deltaMove) {
 	z += deltaMove * lz * 0.1f;
 }
 
+void captureView(int width, int height, string printName) {
+	cv::Mat img(height, width, CV_8UC3);
+
+	//use fast 4-byte alignment (default anyway) if possible
+	glPixelStorei(GL_PACK_ALIGNMENT, (img.step & 3) ? 1 : 4);
+	//set length of one complete row in destination data (doesn't need to equal img.cols)
+	glPixelStorei(GL_PACK_ROW_LENGTH, img.step / img.elemSize());
+
+	glReadPixels(0, 0, img.cols, img.rows, GL_BGR, GL_UNSIGNED_BYTE, img.data);
+
+	cv::Mat flipped(height, width, CV_8UC3);
+	cv::flip(img, flipped, 0);
+
+	cv::imwrite(printName, flipped);
+}
+
 void displayMe(void) {
 	Main base;
 	string baseName = "coala";
@@ -378,6 +394,8 @@ void displayMe(void) {
 		base.LoadImg(baseName + to_string(i + 2) + format);
 		drawImage(base.popTex(), originX, originY, min, max, order);
 	}
+
+	captureView(1366, 768, "out.jpg");
 
 	glutSwapBuffers();
 
