@@ -91,7 +91,7 @@ bool Main::Compare(string img1, string img2) {
 
 	cout << "Comparing " << img1 << " to " << img2 << endl;
 
-	pairDistances.clear();
+	//pairDistances.clear();
 
 	sizePerImg = (float) 2.0 / imagesTotal;
 
@@ -306,13 +306,13 @@ void drawImage(GLuint texture, float translatex, float translatey, float min = -
 	glBegin(GL_QUADS);
 	glBindTexture(GL_TEXTURE_2D, texture);
 	glTexCoord2i(0, 0);
-	glVertex3f(min + translatex, max + translatey, order);
+	glVertex2f(min + translatex, max + translatey);
 	glTexCoord2i(0, 1);
-	glVertex3f(min + translatex, min + translatey, order);
+	glVertex2f(min + translatex, min + translatey);
 	glTexCoord2i(1, 1);
-	glVertex3f(max + translatex, min + translatey, order);
+	glVertex2f(max + translatex, min + translatey);
 	glTexCoord2i(1, 0);
-	glVertex3f(max + translatex, max + translatey, order);
+	glVertex2f(max + translatex, max + translatey);
 	glEnd();
 	glDisable(GL_TEXTURE_2D);
 }
@@ -344,13 +344,20 @@ void displayMe(void) {
 	string baseName = "coala";
 	string format = ".jpg";
 	int imgID = 1;
+	int imgTotal;
 	float min = -1, max = 1;
 	float order = 0;
 	float originX = 0, originY = 0;
 
-	computePos(deltaMove);
+	//computePos(deltaMove);
 
-	base.Compare(baseName + to_string(imgID) + format, baseName + to_string(imgID + 1) + format);
+	while (base.fileExists(baseName + to_string(imgID + 1) + format)) {
+		base.Compare(baseName + to_string(imgID) + format, baseName + to_string(imgID + 1) + format);
+		imgID++;
+	}
+
+	imgTotal = imgID - 1;
+	imgID = 1;
 
 	min = -0.5;
 	max = min + base.sizePerImg;
@@ -362,21 +369,14 @@ void displayMe(void) {
 
 	drawImage(base.popTex(), originX, originY, min, max, order);
 
-	imgID++;
-	while (base.fileExists(baseName + to_string(imgID) + format)) {
-		originX = base.pairDistances[0].x;// *base.sizePerImg;
-		originY = base.pairDistances[0].y;// *base.sizePerImg;
+	for (int i = 0; i < imgTotal; i++) {
+		originX = base.pairDistances[i].x * base.sizePerImg;
+		originY = base.pairDistances[i].y * base.sizePerImg;
 
 		order += 1;
 
-		base.LoadImg(baseName + to_string(imgID) + format);
+		base.LoadImg(baseName + to_string(i + 2) + format);
 		drawImage(base.popTex(), originX, originY, min, max, order);
-
-		if (base.fileExists(baseName + to_string(imgID + 1) + format))
-			base.Compare(baseName + to_string(imgID) + format, baseName + to_string(imgID + 1) + format);
-		//it is not working because this compare function is between the drawing calls
-
-		imgID++;
 	}
 
 	glutSwapBuffers();
