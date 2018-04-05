@@ -357,7 +357,7 @@ void captureView(int width, int height, string printName) {
 
 void displayMe(void) {
 	Main base;
-	string baseName = "coala";
+	string baseName = "angle";
 	string format = ".jpg";
 	int imgID = 1;
 	int imgTotal;
