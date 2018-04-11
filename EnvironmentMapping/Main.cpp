@@ -61,7 +61,7 @@ bool Main::fileExists(string fileName)
 }
 
 int Main::LoadImg(string imgName) {
-	Mat image = imread(imgName);
+	Mat image = imread(imgName, IMREAD_UNCHANGED);
 	GLuint texid;
 
 	textures.push_back(texid);
@@ -74,7 +74,7 @@ int Main::LoadImg(string imgName) {
 		cout << "loading image " << imgName << endl;
 		glGenTextures(1, &texid);
 		glBindTexture(GL_TEXTURE_2D, texid);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image.cols, image.rows, 0, GL_BGR, GL_UNSIGNED_BYTE, image.data);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.cols, image.rows, 0, GL_BGRA, GL_UNSIGNED_BYTE, image.data);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		image.release();
@@ -87,13 +87,13 @@ bool Main::Compare(string img1, string img2) {
 	Mat image1, outImg1, image2, outImg2;		//Create Matrix to store images
 	vector<KeyPoint> keypoints1, keypoints2;	//Key points to be found on both images
 	Mat descriptors1, descriptors2;
-	int minHessian = 400;
+	int minHessian = 600;						// This threshold is used in points detection. A larger value inflicts in less but more salient results, a smaller one makes more results.
 
 	cout << "Comparing " << img1 << " to " << img2 << endl;
 
 	//pairDistances.clear();
 
-	sizePerImg = (float) 2.0 / imagesTotal;
+	sizePerImg = (float) 6.0 / imagesTotal;
 
 	if (fileExists(img1) && fileExists(img2)) {
 		image1 = imread(img1, 0);
@@ -183,9 +183,9 @@ bool Main::Compare(string img1, string img2) {
 
 		//-- Step 5: calculate Essential Matrix
 
-		double data[] = { 1189.46, 0.0, 805.49,
-			0.0, 1191.78, 597.44,
-			0.0, 0.0, 1.0 };
+		double data[] = {	1189.46, 0.0, 805.49,
+							0.0, 1191.78, 597.44,
+							0.0, 0.0, 1.0 };
 		Mat K(3, 3, CV_64F, data);
 		Mat_<double> E = K.t() * F * K; //according to HZ (9.12)
 
@@ -203,7 +203,7 @@ bool Main::Compare(string img1, string img2) {
 		Mat svd_u = svd.u;
 		Mat svd_vt = svd.vt;
 		Mat svd_w = svd.w;
-		Matx33d W(0, -1, 0, 1, 0, 0, 0, 0, 1);//HZ 9.13
+		Matx33d W(0, -1, 0, 1, 0, 0, 0, 0, 1); //HZ 9.13
 		Mat_<double> R = svd_u * Mat(W) * svd_vt; //HZ 9.19
 		Mat_<double> t = svd_u.col(2); //u3
 
@@ -233,6 +233,8 @@ void initGL(int w, int h)
 {
 	glViewport(0, 0, w, h); // use a screen size of WIDTH x HEIGHT
 	glDepthFunc(GL_NEVER);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glEnable(GL_BLEND);
 	//glEnable(GL_LIGHTING);
 
 	//glMatrixMode(GL_PROJECTION);     // Make a simple 2D projection on the entire window
