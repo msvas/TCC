@@ -1,4 +1,5 @@
 #include "Main.h"
+#include "ts.h"
 #include <stdio.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgcodecs.hpp>
@@ -74,7 +75,7 @@ int Main::LoadImg(string imgName) {
 		cout << "loading image " << imgName << endl;
 		glGenTextures(1, &texid);
 		glBindTexture(GL_TEXTURE_2D, texid);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.cols, image.rows, 0, GL_BGRA, GL_UNSIGNED_BYTE, image.data);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image.cols, image.rows, 0, GL_BGR, GL_UNSIGNED_BYTE, image.data);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		image.release();
@@ -400,6 +401,13 @@ void displayMe(void) {
 	captureView(1366, 768, "out.jpg");
 
 	glutSwapBuffers();
+
+	// Extend  gray image.
+	Mat img = imread("out.jpg", CV_LOAD_IMAGE_GRAYSCALE);
+	img.convertTo(img, CV_64FC1, 1.0 / 255.0, 0);
+	Mat result = expandImage(img, 20, 20, 1366);
+	imshow("img", img);
+	imshow("result", result);
 
 	//drawCube();
 	//glutSwapBuffers();
