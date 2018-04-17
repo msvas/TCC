@@ -429,6 +429,7 @@ void processNormalKeys(unsigned char key, int xx, int yy) {
 		exit(0);
 }
 
+/*
 int main(int argc, char** argv) {
 	Main base;
 
@@ -452,3 +453,4 @@ int main(int argc, char** argv) {
 
 	return 0;
 }
+*/
