@@ -90,6 +90,8 @@ vector<matches> FindMatches(Mat Template, Mat SampleImage, Mat img, Point2i temp
     int yPara = SampleImage.rows / 2 - windowSize;
     double minSSD = (double)INT_MAX;
 
+	cout << Template.rows << " " << Template.cols << endl;
+
     for(int i = 0; i < Template.rows; i++){
         for(int j = 0; j < Template.cols; j++){
             if(!isinImage(toplefty + i, topleftx + j, img)){
@@ -104,7 +106,6 @@ vector<matches> FindMatches(Mat Template, Mat SampleImage, Mat img, Point2i temp
             SSD.ATD(i, j) = sum(dist.mul(ValidMask.mul(GaussianMask)))[0] / TotWeight;
         }
     }
-
     for(int i = 0; i < Template.rows; i++){
         for(int j = 0; j < Template.cols; j++){
             if(SSD.ATD(i, j) == -1) continue;
@@ -133,7 +134,7 @@ Mat growImage(const Mat &SampleImage, Mat &Image, int windowSize, Mat &map) {
         bool progress = false;
         vector<Point2i> PixelList = GetUnfilledNeighbors(map);
         //cout<<"PixelList.size = "<<PixelList.size()<<endl;
-        for(int i = 0; i < PixelList.size(); i++){
+        for(int i = 0; i < PixelList.size(); i++) {
             vector<matches> BestMatches;
             Mat Template = getNeigborhoodWindow(Image, PixelList[i], windowSize);
             BestMatches = FindMatches(Template, SampleImage, Image, PixelList[i], windowSize, map);
@@ -145,11 +146,11 @@ Mat growImage(const Mat &SampleImage, Mat &Image, int windowSize, Mat &map) {
                 progress = true;
             }
         }         
-        if(!progress){
+        if (!progress) {
             MaxErrThreshold *= 1.1;
         }   
     }
-    cout<<"MaxErrThreshold = "<<MaxErrThreshold<<endl;
+    cout << "MaxErrThreshold = " << MaxErrThreshold << endl;
     return Image;
 }
 
@@ -164,11 +165,11 @@ Mat expandImage(const Mat &img, int x_expand, int y_expand, int windowSize) {
     Mat map = Mat::zeros(height, width, CV_64FC1);
     map(rect) = Mat::ones(img.rows, img.cols, CV_64FC1);
     //now build a map of which pixels are unfilled pixels
-    if((img.cols >= windowSize * 4) && (img.rows >= windowSize * 4)){
+    if((img.cols >= windowSize * 4) && (img.rows >= windowSize * 4)) {
         Mat result = growImage(img, newimg, windowSize, map);
         return result;
-    }else{
-        cout<<"Window Size too big, it must less than or equal to "<<(img.cols < img.rows ? img.cols : img.rows) / 4<<endl;
+    } else {
+        cout << "Window Size too big, it must less than or equal to " << (img.cols < img.rows ? img.cols : img.rows) / 4 << endl;
         return img;
     }
 }

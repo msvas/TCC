@@ -77,6 +77,8 @@ void CalibrateCamera() {
 		waitKey(0);
 }
 
+/*
 int main() {
 	CalibrateCamera();
 }
+*/

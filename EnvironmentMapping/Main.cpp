@@ -405,7 +405,7 @@ void displayMe(void) {
 	// Extend  gray image.
 	Mat img = imread("out.jpg", CV_LOAD_IMAGE_GRAYSCALE);
 	img.convertTo(img, CV_64FC1, 1.0 / 255.0, 0);
-	Mat result = expandImage(img, 20, 20, 1366);
+	Mat result = expandImage(img, 20, 20, 192);
 	imshow("img", img);
 	imshow("result", result);
 
@@ -429,7 +429,7 @@ void processNormalKeys(unsigned char key, int xx, int yy) {
 		exit(0);
 }
 
-/*
+
 int main(int argc, char** argv) {
 	Main base;
 
@@ -453,4 +453,3 @@ int main(int argc, char** argv) {
 
 	return 0;
 }
-*/
