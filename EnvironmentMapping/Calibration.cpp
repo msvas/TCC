@@ -15,7 +15,7 @@ void CalibrateCamera() {
 	vector<Point3f> objectCorners;
 	vector<vector<Point3f>> objectPoints;
 	vector<vector<Point2f>> imagePoints;
-	Size patternsize(8, 7);
+	Size patternsize(8, 6);
 	Size imageSize;
 	Mat cameraMatrix;
 	Mat distCoeffs;
@@ -49,6 +49,7 @@ void CalibrateCamera() {
 		found = findChessboardCorners(frame, patternsize, imageCorners, CV_CALIB_CB_ADAPTIVE_THRESH | CV_CALIB_CB_FAST_CHECK | CV_CALIB_CB_NORMALIZE_IMAGE);
 
 		if (found) {
+			cout << "found" << endl;
 			cvtColor(frame, viewGray, CV_BGR2GRAY);
 			cornerSubPix(viewGray, imageCorners, Size(5, 5), Size(-1, -1), TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 30, 0.1));
 
@@ -61,6 +62,7 @@ void CalibrateCamera() {
 		}
 
 		drawChessboardCorners(frame, patternsize, Mat(imageCorners), found);
+		imshow("n", frame);
 	}
 
 		std::vector<cv::Mat> rvecs, tvecs;
@@ -71,7 +73,8 @@ void CalibrateCamera() {
 						distCoeffs,   // output distortion matrix
 						rvecs, tvecs); // Rs, Ts 
 
-		cout << cameraMatrix << endl;
+		cout << cameraMatrix << endl << imagePoints.size() << endl;
+		waitKey(0);
 }
 
 int main() {
