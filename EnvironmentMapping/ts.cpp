@@ -178,6 +178,77 @@ Mat expandImage(const Mat &img, int x_expand, int y_expand, int windowSize) {
     }
 }
 
+Mat reduceBlackPixels(const Mat &img) {
+	int cols = img.cols;
+	int type = img.type();
+	Mat newImg = Mat(0, cols, type);
+	int upDown = 0, downUp = img.rows;
+	int maxRows = img.rows - 1;
+	bool upFound = false, downFound = false;
+
+	for (int i = 0; i < img.rows; i++) {
+		for (int j = 0; j < img.cols; j++) {
+			if (downFound && upFound)
+				break;
+
+			if (!upFound) {
+				if ((img.at<double>(i, j)) != 0) {
+					upFound = true;
+				}
+				else if (j == img.cols - 1)
+					upDown++;
+			}
+
+			if (!downFound) {
+				if ((img.at<double>(maxRows - i, j)) != 0) {
+					downFound = true;
+				}
+				else if (j == img.cols - 1)
+					downUp--;
+			}
+		}
+	}
+
+	for (int k = upDown; k < downUp; k++) {
+		newImg.push_back(img.row(k));
+	}
+
+	bool leftFound = false, rightFound = false;
+	int leftRight = 0, rightLeft = img.cols;
+	int maxCols = img.cols - 1;
+
+	for (int j = 0; j < img.cols; j++) {
+		for (int i = 0; i < img.rows; i++) {
+			if (leftFound && rightFound)
+				break;
+
+			if (!leftFound) {
+				if ((img.at<double>(i, j)) != 0) {
+					leftFound = true;
+				}
+				else if (i == img.rows - 1)
+					leftRight++;
+			}
+
+			if (!rightFound) {
+				if ((img.at<double>(i, maxCols - j)) != 0) {
+					rightFound = true;
+				}
+				else if (i == img.rows - 1)
+					rightLeft--;
+			}
+		}
+	}
+
+	Mat finalImg = Mat(newImg.rows, (rightLeft - leftRight + 1), type);
+
+	for (int k = leftRight; k < rightLeft; k++) {
+		newImg.col(k).copyTo(finalImg.col(k - leftRight));
+	}
+
+	return finalImg;
+}
+
 /*
 int main(){
 
