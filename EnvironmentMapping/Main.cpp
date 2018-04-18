@@ -405,8 +405,10 @@ void displayMe(void) {
 	// Extend  gray image.
 	Mat img = imread("out.jpg", CV_LOAD_IMAGE_GRAYSCALE);
 	img.convertTo(img, CV_64FC1, 1.0 / 255.0, 0);
-	Mat result = expandImage(img, 20, 20, 192);
-	imshow("img", img);
+	Mat resized; 
+	resize(img, resized, Size(img.cols / 5, img.rows / 5));
+	Mat result = expandImage(resized, 20, 20, 5);
+	imshow("img", resized);
 	imshow("result", result);
 
 	//drawCube();

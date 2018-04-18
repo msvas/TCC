@@ -58,7 +58,9 @@ Mat getNeigborhoodWindow(const Mat &img, Point2i pt, int windowSize) {
         for(int j = 0; j < result.cols; j++){
             if(isinImage(pt.y - windowSize + i, pt.x - windowSize + j, img)){
                 result.ATD(i, j) = img.ATD(pt.y - windowSize + i, pt.x - windowSize + j);
-            }else result.ATD(i, j) = -1;
+            }
+			else 
+				result.ATD(i, j) = -1;
         }
     }
     return result;
@@ -74,7 +76,9 @@ vector<matches> FindMatches(Mat Template, Mat SampleImage, Mat img, Point2i temp
         for(int j = 0; j < ValidMask.cols; j++){
             if(isinImage(toplefty + i, topleftx + j, img)){
                 ValidMask.ATD(i, j) = Map.ATD(i + toplefty, j + topleftx);
-            }else ValidMask.ATD(i, j) = 0.0;
+            }
+			else 
+				ValidMask.ATD(i, j) = 0.0;
         }
     }
     // GaussMask
@@ -90,7 +94,7 @@ vector<matches> FindMatches(Mat Template, Mat SampleImage, Mat img, Point2i temp
     int yPara = SampleImage.rows / 2 - windowSize;
     double minSSD = (double)INT_MAX;
 
-	cout << Template.rows << " " << Template.cols << endl;
+	//cout << Template.rows << " " << Template.cols << endl;
 
     for(int i = 0; i < Template.rows; i++){
         for(int j = 0; j < Template.cols; j++){
