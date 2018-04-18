@@ -48,14 +48,16 @@ void CalibrateCamera() {
 
 		found = findChessboardCorners(frame, patternsize, imageCorners, CV_CALIB_CB_ADAPTIVE_THRESH | CV_CALIB_CB_FAST_CHECK | CV_CALIB_CB_NORMALIZE_IMAGE);
 
-		//cvtColor(frame, viewGray, CV_BGR2GRAY);
-		//cornerSubPix(viewGray, imageCorners, Size(11, 11), Size(-1, -1), TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 30, 0.1));
+		if (found) {
+			cvtColor(frame, viewGray, CV_BGR2GRAY);
+			cornerSubPix(viewGray, imageCorners, Size(5, 5), Size(-1, -1), TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 30, 0.1));
 
-		if (imageCorners.size() == patternsize.area()) {
-			// 2D image points from one view
-			imagePoints.push_back(imageCorners);
-			// corresponding 3D scene points
-			objectPoints.push_back(objectCorners);
+			if (imageCorners.size() == patternsize.area()) {
+				// 2D image points from one view
+				imagePoints.push_back(imageCorners);
+				// corresponding 3D scene points
+				objectPoints.push_back(objectCorners);
+			}
 		}
 
 		drawChessboardCorners(frame, patternsize, Mat(imageCorners), found);
