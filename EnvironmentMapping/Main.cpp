@@ -405,12 +405,13 @@ void displayMe(void) {
 	// Extend  gray image.
 	Mat img = imread("out.jpg", CV_LOAD_IMAGE_GRAYSCALE);
 	img.convertTo(img, CV_64FC1, 1.0 / 255.0, 0);
-	Mat resized; 
-	//resize(img, resized, Size(img.cols / 5, img.rows / 5));
-	//Mat result = expandImage(resized, 20, 20, 5);
-	resized = reduceBlackPixels(img);
+	Mat resized, reduced;
+	reduced = reduceBlackPixels(img);
+	resize(reduced, resized, Size(reduced.cols / 3, reduced.rows / 3));
+	Mat result = expandImage(resized, 1, 1, 15);
+	
 	imshow("img", resized);
-	//imshow("result", result);
+	imshow("result", result);
 
 	//drawCube();
 	//glutSwapBuffers();

@@ -246,6 +246,7 @@ Mat reduceBlackPixels(const Mat &img) {
 		newImg.col(k).copyTo(finalImg.col(k - leftRight));
 	}
 
+	cout << "Removed black pixels, image reduced from " << img.cols << "x" << img.rows << " to " << finalImg.cols << "x" << finalImg.rows << endl;
 	return finalImg;
 }
 

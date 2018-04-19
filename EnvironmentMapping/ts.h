@@ -27,4 +27,5 @@ cv::Mat getNeigborhoodWindow(const cv::Mat &img, cv::Point2i pt, int windowSize)
 std::vector<matches> FindMatches(cv::Mat Template, cv::Mat SampleImage, cv::Mat img, cv::Point2i templateCenter, int windowSize, cv::Mat Map);
 cv::Mat growImage(const cv::Mat &SampleImage, cv::Mat &Image, int windowSize, cv::Mat &map);
 cv::Mat expandImage(const cv::Mat &img, int x_expand, int y_expand, int windowSize);
+cv::Mat reduceBlackPixels(const cv::Mat &img);
 
