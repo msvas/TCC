@@ -178,9 +178,13 @@ Mat expandImage(const Mat &img, int x_expand, int y_expand, int windowSize) {
     }
 }
 
-Mat reduceBlackPixels(const Mat &img) {
+Mat reduceBlackPixels(const Mat &colorimg) {
+	Mat img;
+	cvtColor(colorimg, img, COLOR_BGR2GRAY);
+	img.convertTo(img, CV_64FC1, 1.0 / 255.0, 0);
+
 	int cols = img.cols;
-	int type = img.type();
+	int type = colorimg.type();
 	Mat newImg = Mat(0, cols, type);
 	int upDown = 0, downUp = img.rows;
 	int maxRows = img.rows - 1;
@@ -210,7 +214,7 @@ Mat reduceBlackPixels(const Mat &img) {
 	}
 
 	for (int k = upDown; k < downUp; k++) {
-		newImg.push_back(img.row(k));
+		newImg.push_back(colorimg.row(k));
 	}
 
 	bool leftFound = false, rightFound = false;

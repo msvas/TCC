@@ -404,12 +404,12 @@ void displayMe(void) {
 	glutSwapBuffers();
 
 	// Extend  gray image.
-	Mat img = imread("out.jpg", CV_LOAD_IMAGE_GRAYSCALE);
-	img.convertTo(img, CV_64FC1, 1.0 / 255.0, 0);
+	Mat img = imread("out.jpg");
 	Mat reduced;
-	reduced = reduceBlackPixels(img);
-
-	TeleaInpaint(reduced);
+	if (!img.empty()) {
+		reduced = reduceBlackPixels(img);
+		TeleaInpaint(reduced);
+	}
 
 	//Mat resized, reduced;
 	//reduced = reduceBlackPixels(img);
