@@ -1,5 +1,6 @@
 #include "Main.h"
 #include "ts.h"
+#include "Inpainting.h"
 #include <stdio.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgcodecs.hpp>
@@ -405,13 +406,18 @@ void displayMe(void) {
 	// Extend  gray image.
 	Mat img = imread("out.jpg", CV_LOAD_IMAGE_GRAYSCALE);
 	img.convertTo(img, CV_64FC1, 1.0 / 255.0, 0);
-	Mat resized, reduced;
+	Mat reduced;
 	reduced = reduceBlackPixels(img);
-	resize(reduced, resized, Size(reduced.cols / 3, reduced.rows / 3));
-	Mat result = expandImage(resized, 1, 1, 15);
+
+	TeleaInpaint(reduced);
+
+	//Mat resized, reduced;
+	//reduced = reduceBlackPixels(img);
+	//resize(reduced, resized, Size(reduced.cols / 3, reduced.rows / 3));
+	//Mat result = expandImage(resized, 1, 1, 15);
 	
-	imshow("img", resized);
-	imshow("result", result);
+	//imshow("img", resized);
+	//imshow("result", result);
 
 	//drawCube();
 	//glutSwapBuffers();
