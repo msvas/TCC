@@ -405,19 +405,16 @@ void displayMe(void) {
 
 	// Extend  gray image.
 	Mat img = imread("out.jpg");
-	Mat reduced;
+	Mat reduced, inpainted;
 	if (!img.empty()) {
 		reduced = reduceBlackPixels(img);
-		TeleaInpaint(reduced);
+		inpainted = TeleaInpaint(reduced);
 	}
 
-	//Mat resized, reduced;
-	//reduced = reduceBlackPixels(img);
-	//resize(reduced, resized, Size(reduced.cols / 3, reduced.rows / 3));
-	//Mat result = expandImage(resized, 1, 1, 15);
-	
-	//imshow("img", resized);
-	//imshow("result", result);
+	//Mat resized;
+	//resize(inpainted, resized, Size(inpainted.cols / 3, inpainted.rows / 3));
+	//Mat result = expandImage(inpainted, 1, 1, 15);
+	//imshow("img", result);
 
 	//drawCube();
 	//glutSwapBuffers();

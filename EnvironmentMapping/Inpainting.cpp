@@ -3,7 +3,7 @@
 using namespace cv;
 using namespace std;
 
-int TeleaInpaint(const Mat &img) {
+Mat TeleaInpaint(const Mat &img) {
 	Mat mask;
 
 	cvtColor(img, mask, COLOR_BGR2GRAY);
@@ -17,8 +17,15 @@ int TeleaInpaint(const Mat &img) {
 	Mat dst;
 	cout << img.cols << " " << img.rows << " " << mask.cols << " " << mask.rows << endl;
 	inpaint(img, mask, dst, 10, INPAINT_TELEA);
-	imshow("image", dst);
-	waitKey(0);
 
-	return 0;
+	return dst;
+}
+
+void WriteToFile(Mat &tobewritten) {
+	// Declare what you need
+	FileStorage file("matrix.ext", cv::FileStorage::WRITE);
+
+	// Write to file!
+	file << "matrix" << tobewritten;
+	file.release();
 }

@@ -8,4 +8,5 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/photo/photo.hpp>
 
-int TeleaInpaint(const cv::Mat &img);
+cv::Mat TeleaInpaint(const cv::Mat &img);
+void WriteToFile(cv::Mat &tobewritten);
