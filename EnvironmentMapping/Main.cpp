@@ -13,11 +13,16 @@
 #include <GL/glew.h>
 #include <GL/freeglut.h>
 
+#include "glm-0.9.8.5/glm/glm.hpp"
+#include "glm-0.9.8.5/glm/gtc/matrix_transform.hpp"
+#include "glm-0.9.8.5/glm/gtc/type_ptr.hpp"
+
 #include <iostream>
 #include <string>
 
 using namespace cv;
 using namespace std;
+using namespace glm;
 using namespace cv::xfeatures2d;
 
 struct Vector3
@@ -403,7 +408,7 @@ void displayMe(void) {
 
 	//captureView(1366, 768, "out.jpg");
 
-	//sphere.render();
+	sphere.render();
 
 	glutSwapBuffers();
 
@@ -466,15 +471,15 @@ void createProgram(GLuint& glProgram, GLuint& glShaderV, GLuint& glShaderF, cons
 	const GLchar* fShaderSource = loadFile(fragment_shader);
 	glShaderSource(glShaderV, 1, &vShaderSource, NULL);
 	glShaderSource(glShaderF, 1, &fShaderSource, NULL);
-	delete[] vShaderSource;
-	delete[] fShaderSource;
+	//delete[] vShaderSource;
+	//delete[] fShaderSource;
 	glCompileShader(glShaderV);
 	glCompileShader(glShaderF);
 	glProgram = glCreateProgram();
 	glAttachShader(glProgram, glShaderV);
 	glAttachShader(glProgram, glShaderF);
 	glLinkProgram(glProgram);
-	glUseProgram(glProgram);
+	//glUseProgram(glProgram);
 
 	int  vlength, flength, plength;
 	char vlog[2048], flog[2048], plog[2048];
@@ -581,6 +586,24 @@ GLuint LoadShaders(const char *vertex_file_path, const char *fragment_file_path)
 	return ProgramID;
 }
 
+void setupCubeMap(GLuint& texture, Mat &xpos, Mat &xneg, Mat &ypos, Mat &yneg, Mat &zpos, Mat &zneg) {
+	glActiveTexture(GL_TEXTURE0);
+	glEnable(GL_TEXTURE_CUBE_MAP);
+	glGenTextures(1, &texture);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, texture);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+	glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, GL_RGB, xpos.cols, xpos.rows, 0, GL_BGR, GL_UNSIGNED_BYTE, xpos.data);
+	glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_X, 0, GL_RGB, xneg.cols, xneg.rows, 0, GL_BGR, GL_UNSIGNED_BYTE, xneg.data);
+	glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Y, 0, GL_RGB, ypos.cols, ypos.rows, 0, GL_BGR, GL_UNSIGNED_BYTE, ypos.data);
+	glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, 0, GL_RGB, yneg.cols, yneg.rows, 0, GL_BGR, GL_UNSIGNED_BYTE, yneg.data);
+	glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Z, 0, GL_RGB, zpos.cols, zpos.rows, 0, GL_BGR, GL_UNSIGNED_BYTE, zpos.data);
+	glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, GL_RGB, zneg.cols, zneg.rows, 0, GL_BGR, GL_UNSIGNED_BYTE, zneg.data);
+}
+
 int main(int argc, char** argv) {
 	Main base;
 
@@ -623,7 +646,16 @@ int main(int argc, char** argv) {
 	GLint View1 = glGetUniformLocation(glProgram1, "View");
 	GLint Model1 = glGetUniformLocation(glProgram1, "Model");
 
+	sphere.vertex1 = vertex1;
+	sphere.normal1 = normal1;
+	sphere.programID = glProgram1;
+
 	sphere.setupBufferObjects();
+
+	glm::mat4 Projection = glm::perspective(45.0f, (float)600 / (float)600, 0.1f, 1000.0f);
+	glm::mat4 View = glm::mat4(1.0f);
+	glm::mat4 Model = glm::mat4(1.0f);
+	glm::mat4 M = glm::mat4(1.0f);
 
 	// cube vertices for vertex buffer object
 	GLfloat cube_vertices[] = {
