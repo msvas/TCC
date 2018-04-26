@@ -39,6 +39,12 @@ float lx = 0.0f, lz = -1.0f;
 float x = 0.0f, z = 5.0f;
 cObj sphere("sphere.obj");
 
+glm::mat4 Projection;
+glm::mat4 View;
+glm::mat4 Model;
+glm::mat4 M;
+
+
 int imagesTotal = 6;
 
 class Main {
@@ -408,6 +414,22 @@ void displayMe(void) {
 
 	//captureView(1366, 768, "out.jpg");
 
+	View = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 1));
+	View = glm::rotate(View, 0.5f, glm::vec3(0.0f, 1.0f, 0.0f));
+
+	// render teapot
+	Model = glm::mat4(1.0f);
+	Model = glm::rotate(Model, .667f, glm::vec3(0.0f, 1.0f, 0.0f));
+	Model = glm::rotate(Model, .667f, glm::vec3(1.0f, 0.0f, 0.0f));
+	Model = glm::rotate(Model, .667f, glm::vec3(0.0f, 0.0f, 1.0f));
+	Model = glm::translate(Model, glm::vec3(0.0f, -0.5f, 0.0f));
+	glm::vec3 light_position = glm::vec3(0.0f, 100.0f, 100.0f);
+	glUseProgram(sphere.programID);
+	glUniform3f(sphere.light_position1, light_position.x, light_position.y, light_position.z);
+	glUniformMatrix4fv(sphere.Projection1, 1, GL_FALSE, glm::value_ptr(Projection));
+	glUniformMatrix4fv(sphere.View1, 1, GL_FALSE, glm::value_ptr(View));
+	glUniformMatrix4fv(sphere.Model1, 1, GL_FALSE, glm::value_ptr(Model));
+
 	sphere.render();
 
 	glutSwapBuffers();
@@ -620,6 +642,12 @@ int main(int argc, char** argv) {
 
 	glewInit();
 
+	Mat xpos = imread("angle1.jpg");	Mat xneg = imread("angle2.jpg");
+	Mat ypos = imread("angle3.jpg");	Mat yneg = imread("angle4.jpg");
+	Mat zpos = imread("angle5.jpg");	Mat zneg = imread("angle6.jpg");
+	GLuint cubemap_texture;
+	setupCubeMap(cubemap_texture, xpos, xneg, ypos, yneg, zpos, zneg);
+
 	//initGL(300, 300);
 	//base.LoadImg("test.png");
 
@@ -632,22 +660,20 @@ int main(int argc, char** argv) {
 
 	// load our shaders and compile them.. create a program and link it
 	GLuint glProgram, glShaderV, glShaderF;
-	createProgram(glProgram, glShaderV, glShaderF, "src/vertex.sh", "src/fragment.sh");
+	createProgram(glProgram, glShaderV, glShaderF, "shaders/vertex.sh", "shaders/fragment.sh");
 	// grab the pvm matrix and vertex location from our shader program
 	GLint PVM = glGetUniformLocation(glProgram, "PVM");
 	GLint vertex = glGetAttribLocation(glProgram, "vertex");
 
 	GLuint glProgram1, glShaderV1, glShaderF1;
-	createProgram(glProgram1, glShaderV1, glShaderF1, "src/vertex1.sh", "src/fragment1.sh");
-	GLint vertex1 = glGetAttribLocation(glProgram1, "vertex");
-	GLint normal1 = glGetAttribLocation(glProgram1, "normal");
-	GLint light_position1 = glGetUniformLocation(glProgram1, "light_position");
-	GLint Projection1 = glGetUniformLocation(glProgram1, "Projection");
-	GLint View1 = glGetUniformLocation(glProgram1, "View");
-	GLint Model1 = glGetUniformLocation(glProgram1, "Model");
+	createProgram(glProgram1, glShaderV1, glShaderF1, "shaders/vertex1.sh", "shaders/fragment1.sh");
+	sphere.vertex1 = glGetAttribLocation(glProgram1, "vertex");
+	sphere.normal1 = glGetAttribLocation(glProgram1, "normal");
+	sphere.light_position1 = glGetUniformLocation(glProgram1, "light_position");
+	sphere.Projection1 = glGetUniformLocation(glProgram1, "Projection");
+	sphere.View1 = glGetUniformLocation(glProgram1, "View");
+	sphere.Model1 = glGetUniformLocation(glProgram1, "Model");
 
-	sphere.vertex1 = vertex1;
-	sphere.normal1 = normal1;
 	sphere.programID = glProgram1;
 
 	sphere.setupBufferObjects();

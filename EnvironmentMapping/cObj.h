@@ -81,6 +81,10 @@ class cObj {
 		GLint vertex1;
 		GLint normal1;
 		GLuint programID;
+		GLint Projection1;
+		GLint Model1;
+		GLint View1;
+		GLint light_position1;
 };
 
 #endif
