@@ -403,7 +403,7 @@ void displayMe(void) {
 
 	//captureView(1366, 768, "out.jpg");
 
-	sphere.render();
+	//sphere.render();
 
 	glutSwapBuffers();
 
@@ -597,21 +597,76 @@ int main(int argc, char** argv) {
 
 	glewInit();
 
-	initGL(300, 300);
+	//initGL(300, 300);
 	//base.LoadImg("test.png");
 
+	// set our viewport, clear color and depth, and enable depth testing
+	glViewport(0, 0, 600, 600);
+	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+	glClearDepth(1.0f);
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);
+
 	// load our shaders and compile them.. create a program and link it
-	GLuint glProgram;
-	glProgram = LoadShaders("shaders/vertex.sh", "shaders/fragment.sh");
+	GLuint glProgram, glShaderV, glShaderF;
+	createProgram(glProgram, glShaderV, glShaderF, "src/vertex.sh", "src/fragment.sh");
+	// grab the pvm matrix and vertex location from our shader program
+	GLint PVM = glGetUniformLocation(glProgram, "PVM");
+	GLint vertex = glGetAttribLocation(glProgram, "vertex");
+
+	GLuint glProgram1, glShaderV1, glShaderF1;
+	createProgram(glProgram1, glShaderV1, glShaderF1, "src/vertex1.sh", "src/fragment1.sh");
+	GLint vertex1 = glGetAttribLocation(glProgram1, "vertex");
+	GLint normal1 = glGetAttribLocation(glProgram1, "normal");
+	GLint light_position1 = glGetUniformLocation(glProgram1, "light_position");
+	GLint Projection1 = glGetUniformLocation(glProgram1, "Projection");
+	GLint View1 = glGetUniformLocation(glProgram1, "View");
+	GLint Model1 = glGetUniformLocation(glProgram1, "Model");
+
+	sphere.setupBufferObjects();
+
+	// cube vertices for vertex buffer object
+	GLfloat cube_vertices[] = {
+		-1.0,  1.0,  1.0,
+		-1.0, -1.0,  1.0,
+		1.0, -1.0,  1.0,
+		1.0,  1.0,  1.0,
+		-1.0,  1.0, -1.0,
+		-1.0, -1.0, -1.0,
+		1.0, -1.0, -1.0,
+		1.0,  1.0, -1.0,
+	};
+	GLuint vbo_cube_vertices;
+	glGenBuffers(1, &vbo_cube_vertices);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo_cube_vertices);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(cube_vertices), cube_vertices, GL_STATIC_DRAW);
+	//glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glEnableVertexAttribArray(vertex);
+	glVertexAttribPointer(vertex, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+	// cube indices for index buffer object
+	GLushort cube_indices[] = {
+		0, 1, 2, 3,
+		3, 2, 6, 7,
+		7, 6, 5, 4,
+		4, 5, 1, 0,
+		0, 3, 7, 4,
+		1, 2, 6, 5,
+	};
+	GLuint ibo_cube_indices;
+	glGenBuffers(1, &ibo_cube_indices);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_cube_indices);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cube_indices), cube_indices, GL_STATIC_DRAW);
+
 	// grab the pvm matrix and vertex location from our shader program
 	//GLint PVM = glGetUniformLocation(glProgram, "PVM");
 	//GLint vertex = glGetAttribLocation(glProgram, "vertex");
 
 	//GLuint glProgram1, glShaderV1, glShaderF1;
 	//createProgram(glProgram1, glShaderV1, glShaderF1, "src/vertex1.sh", "src/fragment1.sh");
-	sphere.vertex1 = glGetAttribLocation(glProgram, "vertex");
-	sphere.normal1 = glGetAttribLocation(glProgram, "normal");
-	sphere.programID = glProgram;
+	//sphere.vertex1 = glGetAttribLocation(glProgram, "vertex");
+	//sphere.normal1 = glGetAttribLocation(glProgram, "normal");
+	//sphere.programID = glProgram;
 
 	//sphere.setupBufferObjects();
 
