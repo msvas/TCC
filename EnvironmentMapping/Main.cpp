@@ -1,6 +1,7 @@
 #include "Main.h"
 #include "ts.h"
 #include "Inpainting.h"
+#include "cObj.h"
 #include <stdio.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgcodecs.hpp>
@@ -31,6 +32,7 @@ int xOrigin = -1;
 float angle = 0;
 float lx = 0.0f, lz = -1.0f;
 float x = 0.0f, z = 5.0f;
+cObj sphere("sphere.obj");
 
 int imagesTotal = 6;
 
@@ -387,7 +389,7 @@ void displayMe(void) {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glLoadIdentity();
 
-	drawImage(base.popTex(), originX, originY, min, max, order);
+	//drawImage(base.popTex(), originX, originY, min, max, order);
 
 	for (int i = 0; i < imgTotal; i++) {
 		originX = base.pairDistances[i].x * base.sizePerImg;
@@ -396,20 +398,22 @@ void displayMe(void) {
 		order += 1;
 
 		base.LoadImg(baseName + to_string(i + 2) + format);
-		drawImage(base.popTex(), originX, originY, min, max, order);
+		//drawImage(base.popTex(), originX, originY, min, max, order);
 	}
 
-	captureView(1366, 768, "out.jpg");
+	//captureView(1366, 768, "out.jpg");
+
+	sphere.render();
 
 	glutSwapBuffers();
 
 	// Extend  gray image.
-	Mat img = imread("out.jpg");
-	Mat reduced, inpainted;
-	if (!img.empty()) {
-		reduced = reduceBlackPixels(img);
-		inpainted = TeleaInpaint(reduced);
-	}
+	//Mat img = imread("out.jpg");
+	//Mat reduced, inpainted;
+	//if (!img.empty()) {
+		//reduced = reduceBlackPixels(img);
+		//inpainted = TeleaInpaint(reduced);
+	//}
 
 	//Mat resized;
 	//resize(inpainted, resized, Size(inpainted.cols / 3, inpainted.rows / 3));
@@ -436,6 +440,146 @@ void processNormalKeys(unsigned char key, int xx, int yy) {
 		exit(0);
 }
 
+char* loadFile(const char *filename) {
+	char* data;
+	int len;
+	std::ifstream ifs(filename, std::ifstream::in);
+
+	ifs.seekg(0, std::ios::end);
+	len = ifs.tellg();
+
+	ifs.seekg(0, std::ios::beg);
+	data = new char[len + 1];
+
+	ifs.read(data, len);
+	data[len] = 0;
+
+	ifs.close();
+
+	return data;
+}
+
+void createProgram(GLuint& glProgram, GLuint& glShaderV, GLuint& glShaderF, const char* vertex_shader, const char* fragment_shader) {
+	glShaderV = glCreateShader(GL_VERTEX_SHADER);
+	glShaderF = glCreateShader(GL_FRAGMENT_SHADER);
+	const GLchar* vShaderSource = loadFile(vertex_shader);
+	const GLchar* fShaderSource = loadFile(fragment_shader);
+	glShaderSource(glShaderV, 1, &vShaderSource, NULL);
+	glShaderSource(glShaderF, 1, &fShaderSource, NULL);
+	delete[] vShaderSource;
+	delete[] fShaderSource;
+	glCompileShader(glShaderV);
+	glCompileShader(glShaderF);
+	glProgram = glCreateProgram();
+	glAttachShader(glProgram, glShaderV);
+	glAttachShader(glProgram, glShaderF);
+	glLinkProgram(glProgram);
+	glUseProgram(glProgram);
+
+	int  vlength, flength, plength;
+	char vlog[2048], flog[2048], plog[2048];
+	glGetShaderInfoLog(glShaderV, 2048, &vlength, vlog);
+	glGetShaderInfoLog(glShaderF, 2048, &flength, flog);
+	glGetProgramInfoLog(glProgram, 2048, &flength, plog);
+	std::cout << vlog << std::endl << std::endl << flog << std::endl << std::endl << plog << std::endl << std::endl;
+}
+
+void releaseProgram(GLuint& glProgram, GLuint glShaderV, GLuint glShaderF) {
+	glDetachShader(glProgram, glShaderF);
+	glDetachShader(glProgram, glShaderV);
+	glDeleteShader(glShaderF);
+	glDeleteShader(glShaderV);
+	glDeleteProgram(glProgram);
+}
+
+GLuint LoadShaders(const char *vertex_file_path, const char *fragment_file_path) {
+
+	// Create the shaders
+	GLuint VertexShaderID = glCreateShader(GL_VERTEX_SHADER);
+	GLuint FragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
+
+	// Read the Vertex Shader code from the file
+	std::string VertexShaderCode;
+	std::ifstream VertexShaderStream(vertex_file_path, std::ios::in);
+	if (VertexShaderStream.is_open()) {
+		std::stringstream sstr;
+		sstr << VertexShaderStream.rdbuf();
+		VertexShaderCode = sstr.str();
+		VertexShaderStream.close();
+	}
+	else {
+		printf("Impossible to open %s. Are you in the right directory ? Don't forget to read the FAQ !\n", vertex_file_path);
+		getchar();
+		return 0;
+	}
+
+	// Read the Fragment Shader code from the file
+	std::string FragmentShaderCode;
+	std::ifstream FragmentShaderStream(fragment_file_path, std::ios::in);
+	if (FragmentShaderStream.is_open()) {
+		std::stringstream sstr;
+		sstr << FragmentShaderStream.rdbuf();
+		FragmentShaderCode = sstr.str();
+		FragmentShaderStream.close();
+	}
+
+	GLint Result = GL_FALSE;
+	int InfoLogLength;
+
+	// Compile Vertex Shader
+	printf("Compiling shader : %s\n", vertex_file_path);
+	char const * VertexSourcePointer = VertexShaderCode.c_str();
+	glShaderSource(VertexShaderID, 1, &VertexSourcePointer, NULL);
+	glCompileShader(VertexShaderID);
+
+	// Check Vertex Shader
+	glGetShaderiv(VertexShaderID, GL_COMPILE_STATUS, &Result);
+	glGetShaderiv(VertexShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
+	if (InfoLogLength > 0) {
+		std::vector<char> VertexShaderErrorMessage(InfoLogLength + 1);
+		glGetShaderInfoLog(VertexShaderID, InfoLogLength, NULL, &VertexShaderErrorMessage[0]);
+		printf("%s\n", &VertexShaderErrorMessage[0]);
+	}
+
+	// Compile Fragment Shader
+	printf("Compiling shader : %s\n", fragment_file_path);
+	char const * FragmentSourcePointer = FragmentShaderCode.c_str();
+	glShaderSource(FragmentShaderID, 1, &FragmentSourcePointer, NULL);
+	glCompileShader(FragmentShaderID);
+
+	// Check Fragment Shader
+	glGetShaderiv(FragmentShaderID, GL_COMPILE_STATUS, &Result);
+	glGetShaderiv(FragmentShaderID, GL_INFO_LOG_LENGTH, &InfoLogLength);
+	if (InfoLogLength > 0) {
+		std::vector<char> FragmentShaderErrorMessage(InfoLogLength + 1);
+		glGetShaderInfoLog(FragmentShaderID, InfoLogLength, NULL, &FragmentShaderErrorMessage[0]);
+		printf("%s\n", &FragmentShaderErrorMessage[0]);
+	}
+
+	// Link the program
+	printf("Linking program\n");
+	GLuint ProgramID = glCreateProgram();
+	glAttachShader(ProgramID, VertexShaderID);
+	glAttachShader(ProgramID, FragmentShaderID);
+	glLinkProgram(ProgramID);
+
+	// Check the program
+	glGetProgramiv(ProgramID, GL_LINK_STATUS, &Result);
+	glGetProgramiv(ProgramID, GL_INFO_LOG_LENGTH, &InfoLogLength);
+	if (InfoLogLength > 0) {
+		std::vector<char> ProgramErrorMessage(InfoLogLength + 1);
+		glGetProgramInfoLog(ProgramID, InfoLogLength, NULL, &ProgramErrorMessage[0]);
+		printf("%s\n", &ProgramErrorMessage[0]);
+	}
+
+	glDetachShader(ProgramID, VertexShaderID);
+	glDetachShader(ProgramID, FragmentShaderID);
+
+	glDeleteShader(VertexShaderID);
+	glDeleteShader(FragmentShaderID);
+
+	return ProgramID;
+}
 
 int main(int argc, char** argv) {
 	Main base;
@@ -455,6 +599,21 @@ int main(int argc, char** argv) {
 
 	initGL(300, 300);
 	//base.LoadImg("test.png");
+
+	// load our shaders and compile them.. create a program and link it
+	GLuint glProgram;
+	glProgram = LoadShaders("shaders/vertex.sh", "shaders/fragment.sh");
+	// grab the pvm matrix and vertex location from our shader program
+	//GLint PVM = glGetUniformLocation(glProgram, "PVM");
+	//GLint vertex = glGetAttribLocation(glProgram, "vertex");
+
+	//GLuint glProgram1, glShaderV1, glShaderF1;
+	//createProgram(glProgram1, glShaderV1, glShaderF1, "src/vertex1.sh", "src/fragment1.sh");
+	sphere.vertex1 = glGetAttribLocation(glProgram, "vertex");
+	sphere.normal1 = glGetAttribLocation(glProgram, "normal");
+	sphere.programID = glProgram;
+
+	//sphere.setupBufferObjects();
 
 	glutMainLoop();
 

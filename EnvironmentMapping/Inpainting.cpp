@@ -11,7 +11,7 @@ Mat TeleaInpaint(const Mat &img) {
 
 	threshold(mask, mask, 220 /255, 1, THRESH_BINARY_INV);
 	mask.convertTo(mask, CV_8U, 255, 0);
-	imshow("o", mask);
+	//imshow("o", mask);
 	waitKey(0);
 
 	Mat dst;
