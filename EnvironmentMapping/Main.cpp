@@ -61,7 +61,6 @@ class Main {
 		GLuint popTex();
 };
 
-
 Main::Main() {			
 	int key = (waitKey(0) & 0xFF);
 	/*while (key != 'q') {
@@ -243,6 +242,74 @@ GLuint Main::popTex() {
 	return tex;
 }
 
+class Skybox {
+public:
+	GLuint glProgram;
+	GLint pvm;
+	GLint vertex;
+	GLuint vbo_cube_vertices;
+	GLuint ibo_cube_indices;
+	GLuint cubemap_texture;
+	GLsizei cube_indices_size;
+
+	Skybox();
+	void Render();
+	void SetBuffers();
+};
+
+Skybox::Skybox() {
+
+}
+
+void Skybox::Render() {
+	glUseProgram(glProgram);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, cubemap_texture);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo_cube_vertices);
+	glEnableVertexAttribArray(vertex);
+	glVertexAttribPointer(vertex, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_cube_indices);
+	glDrawElements(GL_QUADS, cube_indices_size / sizeof(GLushort), GL_UNSIGNED_SHORT, 0);
+}
+
+void Skybox::SetBuffers() {
+	// cube indices for index buffer object
+	GLushort cube_indices[] = {
+		0, 1, 2, 3,
+		3, 2, 6, 7,
+		7, 6, 5, 4,
+		4, 5, 1, 0,
+		0, 3, 7, 4,
+		1, 2, 6, 5,
+	};
+
+	cube_indices_size = sizeof(cube_indices);
+
+	GLfloat cube_vertices[] = {
+		-1.0,  1.0,  1.0,
+		-1.0, -1.0,  1.0,
+		1.0, -1.0,  1.0,
+		1.0,  1.0,  1.0,
+		-1.0,  1.0, -1.0,
+		-1.0, -1.0, -1.0,
+		1.0, -1.0, -1.0,
+		1.0,  1.0, -1.0,
+	};
+
+	glGenBuffers(1, &vbo_cube_vertices);
+	glBindBuffer(GL_ARRAY_BUFFER, vbo_cube_vertices);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(cube_vertices), cube_vertices, GL_STATIC_DRAW);
+	//glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glEnableVertexAttribArray(vertex);
+	glVertexAttribPointer(vertex, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+	glGenBuffers(1, &ibo_cube_indices);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_cube_indices);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cube_indices), cube_indices, GL_STATIC_DRAW);
+}
+
+Skybox skybox;
+
 /* Initialize OpenGL Graphics */
 void initGL(int w, int h)
 {
@@ -414,6 +481,7 @@ void displayMe(void) {
 
 	//captureView(1366, 768, "out.jpg");
 
+	
 	View = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 1));
 	View = glm::rotate(View, 0.5f, glm::vec3(0.0f, 1.0f, 0.0f));
 
@@ -431,7 +499,17 @@ void displayMe(void) {
 	glUniformMatrix4fv(sphere.View1, 1, GL_FALSE, glm::value_ptr(View));
 	glUniformMatrix4fv(sphere.Model1, 1, GL_FALSE, glm::value_ptr(Model));
 
-	sphere.render();
+	//sphere.render();
+	
+	// render skybox
+	Model = glm::scale(glm::mat4(1.0f), glm::vec3(100, 100, 100));
+	View = glm::mat4(1.0f);
+	View = glm::rotate(View, 0.6f, glm::vec3(0.0f, 1.0f, 0.0f));
+	M = Projection * View * Model;
+	glUseProgram(skybox.glProgram);
+	glUniformMatrix4fv(skybox.pvm, 1, GL_FALSE, glm::value_ptr(M));
+
+	skybox.Render();
 
 	glutSwapBuffers();
 
@@ -557,8 +635,8 @@ int main(int argc, char** argv) {
 	Mat xpos = imread("angle1.jpg");	Mat xneg = imread("angle2.jpg");
 	Mat ypos = imread("angle3.jpg");	Mat yneg = imread("angle4.jpg");
 	Mat zpos = imread("angle5.jpg");	Mat zneg = imread("angle6.jpg");
-	GLuint cubemap_texture;
-	setupCubeMap(cubemap_texture, xpos, xneg, ypos, yneg, zpos, zneg);
+	imshow("n", xpos);
+	setupCubeMap(skybox.cubemap_texture, xpos, xneg, ypos, yneg, zpos, zneg);
 
 	//initGL(300, 300);
 	//base.LoadImg("test.png");
@@ -574,8 +652,10 @@ int main(int argc, char** argv) {
 	GLuint glProgram, glShaderV, glShaderF;
 	createProgram(glProgram, glShaderV, glShaderF, "shaders/vertex.sh", "shaders/fragment.sh");
 	// grab the pvm matrix and vertex location from our shader program
-	GLint PVM = glGetUniformLocation(glProgram, "PVM");
-	GLint vertex = glGetAttribLocation(glProgram, "vertex");
+	skybox.pvm = glGetUniformLocation(glProgram, "PVM");
+	skybox.vertex = glGetAttribLocation(glProgram, "vertex");
+
+	skybox.glProgram = glProgram;
 
 	GLuint glProgram1, glShaderV1, glShaderF1;
 	createProgram(glProgram1, glShaderV1, glShaderF1, "shaders/vertex1.sh", "shaders/fragment1.sh");
@@ -595,38 +675,7 @@ int main(int argc, char** argv) {
 	glm::mat4 Model = glm::mat4(1.0f);
 	glm::mat4 M = glm::mat4(1.0f);
 
-	// cube vertices for vertex buffer object
-	GLfloat cube_vertices[] = {
-		-1.0,  1.0,  1.0,
-		-1.0, -1.0,  1.0,
-		1.0, -1.0,  1.0,
-		1.0,  1.0,  1.0,
-		-1.0,  1.0, -1.0,
-		-1.0, -1.0, -1.0,
-		1.0, -1.0, -1.0,
-		1.0,  1.0, -1.0,
-	};
-	GLuint vbo_cube_vertices;
-	glGenBuffers(1, &vbo_cube_vertices);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo_cube_vertices);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(cube_vertices), cube_vertices, GL_STATIC_DRAW);
-	//glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glEnableVertexAttribArray(vertex);
-	glVertexAttribPointer(vertex, 3, GL_FLOAT, GL_FALSE, 0, 0);
-
-	// cube indices for index buffer object
-	GLushort cube_indices[] = {
-		0, 1, 2, 3,
-		3, 2, 6, 7,
-		7, 6, 5, 4,
-		4, 5, 1, 0,
-		0, 3, 7, 4,
-		1, 2, 6, 5,
-	};
-	GLuint ibo_cube_indices;
-	glGenBuffers(1, &ibo_cube_indices);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_cube_indices);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cube_indices), cube_indices, GL_STATIC_DRAW);
+	skybox.SetBuffers();
 
 	// grab the pvm matrix and vertex location from our shader program
 	//GLint PVM = glGetUniformLocation(glProgram, "PVM");
