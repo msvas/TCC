@@ -12,6 +12,8 @@
 #include <opencv2/xfeatures2d.hpp>
 #include <GL/glew.h>
 #include <GL/freeglut.h>
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 
 #include "glm-0.9.8.5/glm/glm.hpp"
 #include "glm-0.9.8.5/glm/gtc/matrix_transform.hpp"
@@ -19,6 +21,9 @@
 
 #include <iostream>
 #include <string>
+
+#define WIDTH 1366
+#define HEIGHT 768
 
 using namespace cv;
 using namespace std;
@@ -30,20 +35,25 @@ struct Vector3
 	double x, y, z;
 };
 
+// camera movement variables
+float cam_angle = 0.0f;
 double tx = 0, ty = 0, tz = 0;
 float deltaAngle = 0.0f;
 float deltaMove = 0;
 int xOrigin = -1;
-float angle = 0;
 float lx = 0.0f, lz = -1.0f;
 float x = 0.0f, z = 5.0f;
-cObj sphere("sphere.obj");
+// end of camera movement variables
+
+cObj sphere("teapot.obj");
 
 glm::mat4 Projection;
 glm::mat4 View;
 glm::mat4 Model;
 glm::mat4 M;
 
+string baseName = "angle";
+string imgformat = ".jpg";
 
 int imagesTotal = 6;
 
@@ -251,6 +261,7 @@ public:
 	GLuint ibo_cube_indices;
 	GLuint cubemap_texture;
 	GLsizei cube_indices_size;
+	GLuint skyboxVAO, skyboxVBO;
 
 	Skybox();
 	void Render();
@@ -273,42 +284,35 @@ void Skybox::Render() {
 }
 
 void Skybox::SetBuffers() {
-	// cube indices for index buffer object
-	GLushort cube_indices[] = {
-		0, 1, 2, 3,
-		3, 2, 6, 7,
-		7, 6, 5, 4,
-		4, 5, 1, 0,
-		0, 3, 7, 4,
-		1, 2, 6, 5,
+	float vertices[] = {
+		//                    vertex1            vertex2            vertex3            vertex4
+		/* xpos */		+1, -1, +1,		+1, +1, +1,		+1, +1, -1,		+1, -1, -1,
+		/* xneg */		-1, -1, -1,			-1, +1, -1,			-1, +1, +1,		-1, -1, +1,
+		/* ypos */		-1, +1, -1,			+1, +1, -1,		+1, +1, +1,		-1, +1, +1,
+		/* yneg */		-1, -1, +1,			+1, -1, +1,		+1, -1, -1,			-1, -1, -1,
+		/* zpos */		+1, -1, +1,		-1, -1, +1,			-1, +1, +1,		+1, +1, +1,
+		/* zneg */		-1, -1, -1,			+1, -1, -1,			+1, +1, -1,		-1, +1, -1,
 	};
 
-	cube_indices_size = sizeof(cube_indices);
+	// vertexarray
+	glGenVertexArrays(1, &(skyboxVAO));
+	glBindVertexArray(skyboxVAO);
 
-	GLfloat cube_vertices[] = {
-		-1.0,  1.0,  1.0,
-		-1.0, -1.0,  1.0,
-		1.0, -1.0,  1.0,
-		1.0,  1.0,  1.0,
-		-1.0,  1.0, -1.0,
-		-1.0, -1.0, -1.0,
-		1.0, -1.0, -1.0,
-		1.0,  1.0, -1.0,
-	};
+	glGenBuffers(1, &(skyboxVBO));
+	glBindBuffer(GL_ARRAY_BUFFER, skyboxVBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-	glGenBuffers(1, &vbo_cube_vertices);
-	glBindBuffer(GL_ARRAY_BUFFER, vbo_cube_vertices);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(cube_vertices), cube_vertices, GL_STATIC_DRAW);
-	//glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glEnableVertexAttribArray(vertex);
-	glVertexAttribPointer(vertex, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(float) * 3, (void*)(sizeof(float) * 0));
+	glEnableVertexAttribArray(0);
 
-	glGenBuffers(1, &ibo_cube_indices);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo_cube_indices);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(cube_indices), cube_indices, GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+	glBindVertexArray(0);
 }
 
 Skybox skybox;
+Main base;
+int imgID = 1;
 
 /* Initialize OpenGL Graphics */
 void initGL(int w, int h)
@@ -417,12 +421,6 @@ void drawQuad(GLuint texture, float min = -0.5, float max = 0.5) {
 	glDisable(GL_TEXTURE_2D);
 }
 
-void computePos(float deltaMove) {
-
-	x += deltaMove * lx * 0.1f;
-	z += deltaMove * lz * 0.1f;
-}
-
 void captureView(int width, int height, string printName) {
 	cv::Mat img(height, width, CV_8UC3);
 
@@ -439,21 +437,73 @@ void captureView(int width, int height, string printName) {
 	cv::imwrite(printName, flipped);
 }
 
+void computePos(float deltaMove) {
+
+	x += deltaMove * lx * 0.1f;
+	z += deltaMove * lz * 0.1f;
+}
+
+void processNormalKeys(unsigned char key, int xx, int yy) {
+
+	if (key == 27)
+		exit(0);
+}
+
+void pressKey(int key, int xx, int yy) {
+
+	switch (key) {
+	case GLUT_KEY_UP: deltaMove = 0.5f; break;
+	case GLUT_KEY_DOWN: deltaMove = -0.5f; break;
+	}
+}
+
+void releaseKey(int key, int x, int y) {
+
+	switch (key) {
+	case GLUT_KEY_UP:
+	case GLUT_KEY_DOWN: deltaMove = 0; break;
+	}
+}
+
+void mouseMove(int x, int y) {
+
+	// this will only be true when the left button is down
+	if (xOrigin >= 0) {
+
+		// update deltaAngle
+		deltaAngle = (x - xOrigin) * 0.001f;
+
+		// update camera's direction
+		lx = sin(cam_angle + deltaAngle);
+		lz = -cos(cam_angle + deltaAngle);
+	}
+}
+
+void mouseButton(int button, int state, int x, int y) {
+
+	// only start motion if the left button is pressed
+	if (button == GLUT_LEFT_BUTTON) {
+
+		// when the button is released
+		if (state == GLUT_UP) {
+			cam_angle += deltaAngle;
+			xOrigin = -1;
+		}
+		else {// state = GLUT_DOWN
+			xOrigin = x;
+		}
+	}
+}
+
+
 void displayMe(void) {
-	Main base;
-	string baseName = "angle";
-	string format = ".jpg";
-	int imgID = 1;
 	int imgTotal;
 	float min = -1, max = 1;
 	float order = 0;
 	float originX = 0, originY = 0;
 
-	//computePos(deltaMove);
-
-	while (base.fileExists(baseName + to_string(imgID + 1) + format)) {
-		base.Compare(baseName + to_string(imgID) + format, baseName + to_string(imgID + 1) + format);
-		imgID++;
+	if (deltaMove) {
+		computePos(deltaMove);
 	}
 
 	imgTotal = imgID - 1;
@@ -462,35 +512,61 @@ void displayMe(void) {
 	min = -0.5;
 	max = min + base.sizePerImg;
 
-	base.LoadImg(baseName + to_string(imgID) + format);
+	//base.LoadImg(baseName + to_string(imgID) + imgformat);
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glLoadIdentity();
 
+	gluLookAt(x, 1.0f, z, x + lx, 1.0f, z + lz, 0.0f, 1.0f, 0.0f);
+
 	//drawImage(base.popTex(), originX, originY, min, max, order);
 
+	/*
 	for (int i = 0; i < imgTotal; i++) {
 		originX = base.pairDistances[i].x * base.sizePerImg;
 		originY = base.pairDistances[i].y * base.sizePerImg;
 
 		order += 1;
 
-		base.LoadImg(baseName + to_string(i + 2) + format);
+		base.LoadImg(baseName + to_string(i + 2) + imgformat);
 		//drawImage(base.popTex(), originX, originY, min, max, order);
 	}
+	*/
 
 	//captureView(1366, 768, "out.jpg");
 
-	
-	View = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 1));
-	View = glm::rotate(View, 0.5f, glm::vec3(0.0f, 1.0f, 0.0f));
-
-	// render teapot
+	// seamless cubemap
+	glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+	// skybox will be drawn first, so disallow writing into depth buffer
+	glDepthMask(GL_FALSE);
+	glUseProgram(skybox.glProgram);
 	Model = glm::mat4(1.0f);
+	Projection = glm::perspective(45.0f, (float)WIDTH / (float)HEIGHT, 0.1f, 1000.0f);
+	View = glm::mat4(1.0f);
+	glUniformMatrix4fv(glGetUniformLocation(skybox.glProgram, "Model"), 1, false, &Model[0][0]);   // render cube around the view position
+	glUniformMatrix4fv(glGetUniformLocation(skybox.glProgram, "View"), 1, false, &View[0][0]);	    // use instead glm::lookAt(...)
+	glUniformMatrix4fv(glGetUniformLocation(skybox.glProgram, "Projection"), 1, false, &Projection[0][0]);
+	glUniform1i(glGetUniformLocation(skybox.glProgram, "skybox"), 0);
+	glActiveTexture(GL_TEXTURE0 + 0);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.cubemap_texture);
+	glBindVertexArray(skybox.skyboxVAO);
+	glDrawArrays(GL_QUADS, 0, 24);
+	glBindVertexArray(0);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+	glUseProgram(0);
+	glDepthMask(GL_TRUE);
+	 
+	//Projection = glm::perspective(45.0f, (float)WIDTH / (float)HEIGHT, 0.1f, 1000.0f);
+	//View = glm::mat4(1.0f);
+	
+	//View = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 1));
+	//View = glm::rotate(View, 0.5f, glm::vec3(0.0f, 1.0f, 0.0f));
+	// render teapot
+	Model = glm::mat4(0);
 	//Model = glm::rotate(Model, .667f, glm::vec3(0.0f, 1.0f, 0.0f));
 	//Model = glm::rotate(Model, .667f, glm::vec3(1.0f, 0.0f, 0.0f));
 	//Model = glm::rotate(Model, .667f, glm::vec3(0.0f, 0.0f, 1.0f));
-	Model = glm::translate(Model, glm::vec3(0.0f, 0.0f, 0.0f));
+	Model = glm::translate(View, glm::vec3(0.0f, 0.0f, -2.0f));
 	Model = glm::scale(Model, glm::vec3(0.5f, 0.5f, 0.5f));
 	glm::vec3 light_position = glm::vec3(0.0f, 100.0f, 100.0f);
 	glUseProgram(sphere.programID);
@@ -498,18 +574,13 @@ void displayMe(void) {
 	glUniformMatrix4fv(sphere.Projection1, 1, GL_FALSE, glm::value_ptr(Projection));
 	glUniformMatrix4fv(sphere.View1, 1, GL_FALSE, glm::value_ptr(View));
 	glUniformMatrix4fv(sphere.Model1, 1, GL_FALSE, glm::value_ptr(Model));
+	glUniform1i(glGetUniformLocation(sphere.programID, "cubemap"), 0);
+	glActiveTexture(GL_TEXTURE0 + 0);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.cubemap_texture);
 
-	//sphere.render();
+	sphere.render();
 	
-	// render skybox
-	Model = glm::scale(glm::mat4(1.0f), glm::vec3(100, 100, 100));
-	View = glm::mat4(1.0f);
-	View = glm::rotate(View, 0.6f, glm::vec3(0.0f, 1.0f, 0.0f));
-	M = Projection * View * Model;
-	glUseProgram(skybox.glProgram);
-	glUniformMatrix4fv(skybox.pvm, 1, GL_FALSE, glm::value_ptr(M));
-
-	skybox.Render();
+	//drawCube();
 
 	glutSwapBuffers();
 
@@ -538,12 +609,6 @@ void displayMe(void) {
 	glutSwapBuffers();
 	*/
 	
-}
-
-void processNormalKeys(unsigned char key, int xx, int yy) {
-
-	if (key == 27)
-		exit(0);
 }
 
 char* loadFile(const char *filename) {
@@ -580,7 +645,7 @@ void createProgram(GLuint& glProgram, GLuint& glShaderV, GLuint& glShaderF, cons
 	glAttachShader(glProgram, glShaderV);
 	glAttachShader(glProgram, glShaderF);
 	glLinkProgram(glProgram);
-	//glUseProgram(glProgram);
+	glUseProgram(glProgram);
 
 	int  vlength, flength, plength;
 	char vlog[2048], flog[2048], plog[2048];
@@ -596,6 +661,36 @@ void releaseProgram(GLuint& glProgram, GLuint glShaderV, GLuint glShaderF) {
 	glDeleteShader(glShaderF);
 	glDeleteShader(glShaderV);
 	glDeleteProgram(glProgram);
+}
+
+unsigned int loadCubemap(vector<std::string> faces)
+{
+	unsigned int textureID;
+	glGenTextures(1, &textureID);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
+
+	int width, height, nrChannels;
+	for (unsigned int i = 0; i < faces.size(); i++)
+	{
+		unsigned char *data = stbi_load(faces[i].c_str(), &width, &height, &nrChannels, 0);
+		if (data)
+		{
+			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+			stbi_image_free(data);
+		}
+		else
+		{
+			std::cout << "Cubemap texture failed to load at path: " << faces[i] << std::endl;
+			stbi_image_free(data);
+		}
+	}
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+	return textureID;
 }
 
 void setupCubeMap(GLuint& texture, Mat &xpos, Mat &xneg, Mat &ypos, Mat &yneg, Mat &zpos, Mat &zneg) {
@@ -617,45 +712,57 @@ void setupCubeMap(GLuint& texture, Mat &xpos, Mat &xneg, Mat &ypos, Mat &yneg, M
 }
 
 int main(int argc, char** argv) {
-	Main base;
+	/*
+	while (base.fileExists(baseName + to_string(imgID + 1) + imgformat)) {
+		base.Compare(baseName + to_string(imgID) + imgformat, baseName + to_string(imgID + 1) + imgformat);
+		imgID++;
+	}
+	*/
 
 	glutInit(&argc, argv);
 	//glutInitDisplayMode(GLUT_SINGLE);
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
-	glutInitWindowSize(1366, 768);                    // window size
+	glutInitWindowSize(WIDTH, HEIGHT);                    // window size
 	glutInitWindowPosition(0, 0);                // distance from the top-left screen
 	glutCreateWindow(argv[0]);    // message displayed on top bar window
 	glutDisplayFunc(displayMe);
 
 	glutIgnoreKeyRepeat(1);
 	glutKeyboardFunc(processNormalKeys);
+	glutSpecialFunc(pressKey);
+	glutSpecialUpFunc(releaseKey);
+
+	// here are the two new functions
+	glutMouseFunc(mouseButton);
+	glutMotionFunc(mouseMove);
 
 	glewInit();
 
-	Mat xpos = imread("angle1.jpg");	Mat xneg = imread("angle2.jpg");
-	Mat ypos = imread("angle3.jpg");	Mat yneg = imread("angle4.jpg");
-	Mat zpos = imread("angle5.jpg");	Mat zneg = imread("angle6.jpg");
-	imshow("n", xpos);
-	setupCubeMap(skybox.cubemap_texture, xpos, xneg, ypos, yneg, zpos, zneg);
 
 	//initGL(300, 300);
 	//base.LoadImg("test.png");
 
 	// set our viewport, clear color and depth, and enable depth testing
-	glViewport(0, 0, 600, 600);
+	glViewport(0, 0, WIDTH, HEIGHT);
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glClearDepth(1.0f);
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LEQUAL);
 
-	// load our shaders and compile them.. create a program and link it
-	GLuint glProgram, glShaderV, glShaderF;
-	createProgram(glProgram, glShaderV, glShaderF, "shaders/vertex.sh", "shaders/fragment.sh");
-	// grab the pvm matrix and vertex location from our shader program
-	skybox.pvm = glGetUniformLocation(glProgram, "PVM");
-	skybox.vertex = glGetAttribLocation(glProgram, "vertex");
+	skybox.SetBuffers();
 
-	skybox.glProgram = glProgram;
+	// cubemap
+	skybox.cubemap_texture = loadCubemap({
+		"skybox/back.jpg",
+		"skybox/bottom.jpg",
+		"skybox/front.jpg",
+		"skybox/left.jpg",
+		"skybox/right.jpg",
+		"skybox/top.jpg"
+	});
+
+	GLuint glShaderV, glShaderF;
+	createProgram(skybox.glProgram, glShaderV, glShaderF, "shaders/vertex.sh", "shaders/fragment.sh");
 
 	GLuint glProgram1, glShaderV1, glShaderF1;
 	createProgram(glProgram1, glShaderV1, glShaderF1, "shaders/vertex1.sh", "shaders/fragment1.sh");
@@ -669,26 +776,7 @@ int main(int argc, char** argv) {
 	sphere.programID = glProgram1;
 
 	sphere.setupBufferObjects();
-
-	glm::mat4 Projection = glm::perspective(45.0f, (float)600 / (float)600, 0.1f, 1000.0f);
-	glm::mat4 View = glm::mat4(1.0f);
-	glm::mat4 Model = glm::mat4(1.0f);
-	glm::mat4 M = glm::mat4(1.0f);
-
-	skybox.SetBuffers();
-
-	// grab the pvm matrix and vertex location from our shader program
-	//GLint PVM = glGetUniformLocation(glProgram, "PVM");
-	//GLint vertex = glGetAttribLocation(glProgram, "vertex");
-
-	//GLuint glProgram1, glShaderV1, glShaderF1;
-	//createProgram(glProgram1, glShaderV1, glShaderF1, "src/vertex1.sh", "src/fragment1.sh");
-	//sphere.vertex1 = glGetAttribLocation(glProgram, "vertex");
-	//sphere.normal1 = glGetAttribLocation(glProgram, "normal");
-	//sphere.programID = glProgram;
-
-	//sphere.setupBufferObjects();
-
+	
 	glutMainLoop();
 
 	return 0;

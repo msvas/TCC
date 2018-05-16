@@ -1,9 +1,12 @@
-#version 330
+#version 450
 
-in vec3 texCoord;
-out vec4 fragColor;
-uniform samplerCube cubemap;
+in vec3 TexCoords;
 
-void main (void) {
-	fragColor = texture(cubemap, texCoord);
+uniform samplerCube skybox;
+
+layout (location = 0) out vec4 FragmentColor0;
+
+void main()
+{
+	FragmentColor0 = texture(skybox, TexCoords);
 }

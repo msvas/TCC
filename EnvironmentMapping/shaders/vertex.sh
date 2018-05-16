@@ -1,10 +1,17 @@
-#version 330
+#version 450
 
-in vec3 vertex;
-out vec3 texCoord;
-uniform mat4 PVM;
+layout (location = 0) in vec3 VertexPosition;
 
-void main() {
-	gl_Position = PVM * vec4(vertex, 1.0);
-	texCoord = vertex;
+uniform mat4 Model;
+uniform mat4 View;
+uniform mat4 Projection;
+
+out vec3 TexCoords;
+
+void main()
+{
+	mat4 MVP = Projection * View * Model;
+	gl_Position = MVP * vec4(VertexPosition, 1.0);
+
+    TexCoords = VertexPosition;
 }
