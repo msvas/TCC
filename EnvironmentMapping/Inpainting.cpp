@@ -21,6 +21,14 @@ Mat TeleaInpaint(const Mat &img) {
 	return dst;
 }
 
+// ROI (Region of Interest)
+Mat GetImgPiece(const Mat img, int xinit, int yinit, int width, int height) {
+	Rect roi = Rect(xinit, yinit, width, height);
+	Mat result = Mat(img, roi);
+
+	return result;
+}
+
 void WriteToFile(Mat &tobewritten) {
 	// Declare what you need
 	FileStorage file("matrix.ext", cv::FileStorage::WRITE);

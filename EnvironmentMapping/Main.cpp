@@ -431,8 +431,8 @@ void drawQuad(GLuint texture, float min = -0.5, float max = 0.5) {
 	glDisable(GL_TEXTURE_2D);
 }
 
-void captureView(int width, int height, string printName) {
-	cv::Mat img(height, width, CV_8UC3);
+Mat captureView(int width, int height, string printName) {
+	Mat img(height, width, CV_8UC3);
 
 	//use fast 4-byte alignment (default anyway) if possible
 	glPixelStorei(GL_PACK_ALIGNMENT, (img.step & 3) ? 1 : 4);
@@ -441,10 +441,12 @@ void captureView(int width, int height, string printName) {
 
 	glReadPixels(0, 0, img.cols, img.rows, GL_BGR, GL_UNSIGNED_BYTE, img.data);
 
-	cv::Mat flipped(height, width, CV_8UC3);
-	cv::flip(img, flipped, 0);
+	Mat flipped(height, width, CV_8UC3);
+	flip(img, flipped, 0);
+	
+	imwrite(printName, flipped);
 
-	cv::imwrite(printName, flipped);
+	return flipped;
 }
 
 void computePos(float deltaMove) {
@@ -505,6 +507,53 @@ void mouseButton(int button, int state, int x, int y) {
 	}
 }
 
+unsigned int loadCubemap(vector<std::string> faces)
+{
+	unsigned int textureID;
+	glGenTextures(1, &textureID);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
+
+	int width, height, nrChannels;
+	for (unsigned int i = 0; i < faces.size(); i++)
+	{
+		unsigned char *data = stbi_load(faces[i].c_str(), &width, &height, &nrChannels, 0);
+		if (data)
+		{
+			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+			stbi_image_free(data);
+		}
+		else
+		{
+			std::cout << "Cubemap texture failed to load at path: " << faces[i] << std::endl;
+			stbi_image_free(data);
+		}
+	}
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+	return textureID;
+}
+
+void setupCubeMap(GLuint& texture, Mat &xpos, Mat &xneg, Mat &ypos, Mat &yneg, Mat &zpos, Mat &zneg) {
+	glActiveTexture(GL_TEXTURE0);
+	glEnable(GL_TEXTURE_CUBE_MAP);
+	glGenTextures(1, &texture);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, texture);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+	glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, GL_RGB, xpos.cols, xpos.rows, 0, GL_BGR, GL_UNSIGNED_BYTE, xpos.data);
+	glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_X, 0, GL_RGB, xneg.cols, xneg.rows, 0, GL_BGR, GL_UNSIGNED_BYTE, xneg.data);
+	glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Y, 0, GL_RGB, ypos.cols, ypos.rows, 0, GL_BGR, GL_UNSIGNED_BYTE, ypos.data);
+	glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, 0, GL_RGB, yneg.cols, yneg.rows, 0, GL_BGR, GL_UNSIGNED_BYTE, yneg.data);
+	glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Z, 0, GL_RGB, zpos.cols, zpos.rows, 0, GL_BGR, GL_UNSIGNED_BYTE, zpos.data);
+	glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, GL_RGB, zneg.cols, zneg.rows, 0, GL_BGR, GL_UNSIGNED_BYTE, zneg.data);
+}
 
 void displayMe(void) {
 	float min = -1, max = 1;
@@ -540,7 +589,67 @@ void displayMe(void) {
 			drawImage(base.popTex(), originX, originY, min, max, order);
 		}
 
-		captureView(1366, 768, "out.jpg");
+		Mat wholeTex;
+		wholeTex = captureView(1366, 768, "out.jpg");
+
+		// Extend  gray image.
+		//Mat img = imread("out.jpg");
+		
+		Mat reduced, inpainted;
+		if (!wholeTex.empty()) {
+			reduced = reduceBlackPixels(wholeTex);
+			inpainted = TeleaInpaint(reduced);
+		}
+
+		int xsize = floor(inpainted.cols / 4);
+		int ysize = floor(inpainted.rows / 3);
+
+		// finds the next power of 2
+		int nextx = pow(2, ceil(log(xsize) / log(2)));
+		int nexty = pow(2, ceil(log(ysize) / log(2)));
+
+		// gets the bigger one
+		int biggerpower = nextx > nexty ? nextx : nexty;
+
+		/*
+		Mat top = GetImgPiece(inpainted, xsize, 0, xsize, ysize);
+		Mat left = GetImgPiece(inpainted, 0, ysize, xsize, ysize);
+		Mat front = GetImgPiece(inpainted, xsize, ysize, xsize, ysize);
+		Mat right = GetImgPiece(inpainted, 2 * xsize, ysize, xsize, ysize);
+		Mat back = GetImgPiece(inpainted, 3 * xsize, ysize, xsize, ysize);
+		Mat bottom = GetImgPiece(inpainted, xsize, 2 * ysize, xsize, ysize);
+		*/
+
+		Mat top = GetImgPiece(inpainted, xsize, 0, biggerpower, biggerpower);
+		Mat left = GetImgPiece(inpainted, 0, biggerpower, biggerpower, biggerpower);
+		Mat front = GetImgPiece(inpainted, xsize, biggerpower, biggerpower, biggerpower);
+		Mat right = GetImgPiece(inpainted, 2 * xsize, biggerpower, biggerpower, biggerpower);
+		Mat back = GetImgPiece(inpainted, 4 * xsize - biggerpower, ysize, biggerpower, biggerpower);
+		Mat bottom = GetImgPiece(inpainted, xsize, 3 * ysize - biggerpower, biggerpower, biggerpower);
+
+		imwrite("cubemap/top.jpg", top);
+		imwrite("cubemap/left.jpg", left);
+		imwrite("cubemap/front.jpg", front);
+		imwrite("cubemap/right.jpg", right);
+		imwrite("cubemap/back.jpg", back);
+		imwrite("cubemap/bottom.jpg", bottom);
+
+		//Mat resized;
+		//resize(inpainted, resized, Size(inpainted.cols / 3, inpainted.rows / 3));
+		//Mat result = expandImage(inpainted, 1, 1, 15);
+		//imshow("img2", result);
+
+		// cubemap
+		skybox.cubemap_texture = loadCubemap({
+			"cubemap/back.jpg",
+			"cubemap/bottom.jpg",
+			"cubemap/front.jpg",
+			"cubemap/left.jpg",
+			"cubemap/right.jpg",
+			"cubemap/top.jpg"
+		});
+		
+		//setupCubeMap(skybox.cubemap_texture, top, left, front, right, back, bottom);
 
 		renderBG = false;
 	} 
@@ -598,19 +707,6 @@ void displayMe(void) {
 	//drawCube();
 	
 	glutSwapBuffers();
-
-	// Extend  gray image.
-	//Mat img = imread("out.jpg");
-	//Mat reduced, inpainted;
-	//if (!img.empty()) {
-		//reduced = reduceBlackPixels(img);
-		//inpainted = TeleaInpaint(reduced);
-	//}
-
-	//Mat resized;
-	//resize(inpainted, resized, Size(inpainted.cols / 3, inpainted.rows / 3));
-	//Mat result = expandImage(inpainted, 1, 1, 15);
-	//imshow("img", result);
 
 	//drawCube();
 	//glutSwapBuffers();
@@ -678,54 +774,6 @@ void releaseProgram(GLuint& glProgram, GLuint glShaderV, GLuint glShaderF) {
 	glDeleteProgram(glProgram);
 }
 
-unsigned int loadCubemap(vector<std::string> faces)
-{
-	unsigned int textureID;
-	glGenTextures(1, &textureID);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
-
-	int width, height, nrChannels;
-	for (unsigned int i = 0; i < faces.size(); i++)
-	{
-		unsigned char *data = stbi_load(faces[i].c_str(), &width, &height, &nrChannels, 0);
-		if (data)
-		{
-			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-			stbi_image_free(data);
-		}
-		else
-		{
-			std::cout << "Cubemap texture failed to load at path: " << faces[i] << std::endl;
-			stbi_image_free(data);
-		}
-	}
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-
-	return textureID;
-}
-
-void setupCubeMap(GLuint& texture, Mat &xpos, Mat &xneg, Mat &ypos, Mat &yneg, Mat &zpos, Mat &zneg) {
-	glActiveTexture(GL_TEXTURE0);
-	glEnable(GL_TEXTURE_CUBE_MAP);
-	glGenTextures(1, &texture);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, texture);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-	glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X, 0, GL_RGB, xpos.cols, xpos.rows, 0, GL_BGR, GL_UNSIGNED_BYTE, xpos.data);
-	glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_X, 0, GL_RGB, xneg.cols, xneg.rows, 0, GL_BGR, GL_UNSIGNED_BYTE, xneg.data);
-	glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Y, 0, GL_RGB, ypos.cols, ypos.rows, 0, GL_BGR, GL_UNSIGNED_BYTE, ypos.data);
-	glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, 0, GL_RGB, yneg.cols, yneg.rows, 0, GL_BGR, GL_UNSIGNED_BYTE, yneg.data);
-	glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_Z, 0, GL_RGB, zpos.cols, zpos.rows, 0, GL_BGR, GL_UNSIGNED_BYTE, zpos.data);
-	glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, GL_RGB, zneg.cols, zneg.rows, 0, GL_BGR, GL_UNSIGNED_BYTE, zneg.data);
-}
-
 int main(int argc, char** argv) {
 	while (base.fileExists(baseName + to_string(imgID + 1) + imgformat)) {
 		base.Compare(baseName + to_string(imgID) + imgformat, baseName + to_string(imgID + 1) + imgformat);
@@ -766,16 +814,6 @@ int main(int argc, char** argv) {
 	//glViewport(0, 0, WIDTH, HEIGHT);
 	
 	skybox.SetBuffers();
-
-	// cubemap
-	skybox.cubemap_texture = loadCubemap({
-		"skybox/back.jpg",
-		"skybox/bottom.jpg",
-		"skybox/front.jpg",
-		"skybox/left.jpg",
-		"skybox/right.jpg",
-		"skybox/top.jpg"
-	});
 
 	GLuint glShaderV, glShaderF;
 	createProgram(skybox.glProgram, glShaderV, glShaderF, "shaders/vertex.sh", "shaders/fragment.sh");

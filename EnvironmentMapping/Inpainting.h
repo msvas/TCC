@@ -9,4 +9,5 @@
 #include <opencv2/photo/photo.hpp>
 
 cv::Mat TeleaInpaint(const cv::Mat &img);
+cv::Mat GetImgPiece(const cv::Mat img, int xinit, int yinit, int width, int height);
 void WriteToFile(cv::Mat &tobewritten);
