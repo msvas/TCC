@@ -35,6 +35,8 @@ struct Vector3
 	double x, y, z;
 };
 
+bool renderBG = true;
+
 // camera movement variables
 float cam_angle = 0.0f;
 double tx = 0, ty = 0, tz = 0;
@@ -88,8 +90,6 @@ int Main::LoadImg(string imgName) {
 	Mat image = imread(imgName, IMREAD_UNCHANGED);
 	GLuint texid;
 
-	textures.push_back(texid);
-
 	if (image.empty()) {
 		cout << "image empty" << endl;
 		return 0;
@@ -97,12 +97,17 @@ int Main::LoadImg(string imgName) {
 	else {
 		cout << "loading image " << imgName << endl;
 		glGenTextures(1, &texid);
+		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, texid);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image.cols, image.rows, 0, GL_BGR, GL_UNSIGNED_BYTE, image.data);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		image.release();
+
+		textures.push_back(texid);
 	}
+
+	cout << "loaded texture: " << texid << " total size: " << textures.size() << endl;
 
 	return 1;
 }
@@ -247,8 +252,11 @@ bool Main::Compare(string img1, string img2) {
 
 GLuint Main::popTex() {
 	GLuint tex;
-	tex = textures.front();
+	list<GLuint>::iterator it = textures.begin();
+	advance(it, 0);
+	tex = *it;
 	textures.pop_front();
+	cout << "popped. loaded texture: " << tex << " total size: " << textures.size() << endl;
 	return tex;
 }
 
@@ -313,6 +321,7 @@ void Skybox::SetBuffers() {
 Skybox skybox;
 Main base;
 int imgID = 1;
+int imgTotal;
 
 /* Initialize OpenGL Graphics */
 void initGL(int w, int h)
@@ -388,11 +397,12 @@ void drawCube() {
 }
 
 void drawImage(GLuint texture, float translatex, float translatey, float min = -1, float max = 1, float order = 0) {
-	cout << "Drawing image " << order << " with " << translatex << ", " << translatey << ", " << min << ", " << max << endl;
+	cout << "Drawing image " << texture << " with " << translatex << ", " << translatey << ", " << min << ", " << max << endl;
 
 	glEnable(GL_TEXTURE_2D);
-	glBegin(GL_QUADS);
+	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, texture);
+	glBegin(GL_QUADS);
 	glTexCoord2i(0, 0);
 	glVertex2f(min + translatex, max + translatey);
 	glTexCoord2i(0, 1);
@@ -497,7 +507,6 @@ void mouseButton(int button, int state, int x, int y) {
 
 
 void displayMe(void) {
-	int imgTotal;
 	float min = -1, max = 1;
 	float order = 0;
 	float originX = 0, originY = 0;
@@ -506,82 +515,88 @@ void displayMe(void) {
 		computePos(deltaMove);
 	}
 
-	imgTotal = imgID - 1;
-	imgID = 1;
-
 	min = -0.5;
 	max = min + base.sizePerImg;
-
-	//base.LoadImg(baseName + to_string(imgID) + imgformat);
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glLoadIdentity();
 
-	gluLookAt(x, 1.0f, z, x + lx, 1.0f, z + lz, 0.0f, 1.0f, 0.0f);
+	//gluLookAt(x, 1.0f, z, x + lx, 1.0f, z + lz, 0.0f, 1.0f, 0.0f);
 
-	//drawImage(base.popTex(), originX, originY, min, max, order);
+	if (renderBG) {
 
-	/*
-	for (int i = 0; i < imgTotal; i++) {
-		originX = base.pairDistances[i].x * base.sizePerImg;
-		originY = base.pairDistances[i].y * base.sizePerImg;
+		imgID = 1;
 
-		order += 1;
+		//base.LoadImg(baseName + to_string(imgID) + imgformat);
 
-		base.LoadImg(baseName + to_string(i + 2) + imgformat);
-		//drawImage(base.popTex(), originX, originY, min, max, order);
+		drawImage(base.popTex(), originX, originY, min, max, order);
+
+		for (int i = 0; i < imgTotal; i++) {
+			originX = base.pairDistances[i].x * base.sizePerImg;
+			originY = base.pairDistances[i].y * base.sizePerImg;
+
+			order += 1;
+			//base.LoadImg(baseName + to_string(i + 2) + imgformat);
+			drawImage(base.popTex(), originX, originY, min, max, order);
+		}
+
+		captureView(1366, 768, "out.jpg");
+
+		renderBG = false;
+	} 
+	else {
+		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+		glClearDepth(1.0f);
+		glEnable(GL_DEPTH_TEST);
+		glDepthFunc(GL_LEQUAL);
+
+		// seamless cubemap
+		glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+		// skybox will be drawn first, so disallow writing into depth buffer
+		glDepthMask(GL_FALSE);
+		glUseProgram(skybox.glProgram);
+		Model = glm::mat4(1.0f);
+		Projection = glm::perspective(45.0f, (float)WIDTH / (float)HEIGHT, 0.1f, 1000.0f);
+		View = glm::mat4(1.0f);
+		glUniformMatrix4fv(glGetUniformLocation(skybox.glProgram, "Model"), 1, false, &Model[0][0]);   // render cube around the view position
+		glUniformMatrix4fv(glGetUniformLocation(skybox.glProgram, "View"), 1, false, &View[0][0]);	    // use instead glm::lookAt(...)
+		glUniformMatrix4fv(glGetUniformLocation(skybox.glProgram, "Projection"), 1, false, &Projection[0][0]);
+		glUniform1i(glGetUniformLocation(skybox.glProgram, "skybox"), 0);
+		glActiveTexture(GL_TEXTURE0 + 0);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.cubemap_texture);
+		glBindVertexArray(skybox.skyboxVAO);
+		glDrawArrays(GL_QUADS, 0, 24);
+		glBindVertexArray(0);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+		glUseProgram(0);
+		glDepthMask(GL_TRUE);
+
+		//Projection = glm::perspective(45.0f, (float)WIDTH / (float)HEIGHT, 0.1f, 1000.0f);
+		//View = glm::mat4(1.0f);
+
+		//View = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 1));
+		//View = glm::rotate(View, 0.5f, glm::vec3(0.0f, 1.0f, 0.0f));
+		// render teapot
+		Model = glm::mat4(0);
+		//Model = glm::rotate(Model, .667f, glm::vec3(0.0f, 1.0f, 0.0f));
+		//Model = glm::rotate(Model, .667f, glm::vec3(1.0f, 0.0f, 0.0f));
+		//Model = glm::rotate(Model, .667f, glm::vec3(0.0f, 0.0f, 1.0f));
+		Model = glm::translate(View, glm::vec3(0.0f, 0.0f, -2.0f));
+		Model = glm::scale(Model, glm::vec3(0.5f, 0.5f, 0.5f));
+		glm::vec3 light_position = glm::vec3(0.0f, 100.0f, 100.0f);
+		glUseProgram(sphere.programID);
+		glUniform3f(sphere.light_position1, light_position.x, light_position.y, light_position.z);
+		glUniformMatrix4fv(sphere.Projection1, 1, GL_FALSE, glm::value_ptr(Projection));
+		glUniformMatrix4fv(sphere.View1, 1, GL_FALSE, glm::value_ptr(View));
+		glUniformMatrix4fv(sphere.Model1, 1, GL_FALSE, glm::value_ptr(Model));
+		glUniform1i(glGetUniformLocation(sphere.programID, "cubemap"), 0);
+		glActiveTexture(GL_TEXTURE0 + 0);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.cubemap_texture);
+
+		sphere.render();
 	}
-	*/
-
-	//captureView(1366, 768, "out.jpg");
-
-	// seamless cubemap
-	glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
-	// skybox will be drawn first, so disallow writing into depth buffer
-	glDepthMask(GL_FALSE);
-	glUseProgram(skybox.glProgram);
-	Model = glm::mat4(1.0f);
-	Projection = glm::perspective(45.0f, (float)WIDTH / (float)HEIGHT, 0.1f, 1000.0f);
-	View = glm::mat4(1.0f);
-	glUniformMatrix4fv(glGetUniformLocation(skybox.glProgram, "Model"), 1, false, &Model[0][0]);   // render cube around the view position
-	glUniformMatrix4fv(glGetUniformLocation(skybox.glProgram, "View"), 1, false, &View[0][0]);	    // use instead glm::lookAt(...)
-	glUniformMatrix4fv(glGetUniformLocation(skybox.glProgram, "Projection"), 1, false, &Projection[0][0]);
-	glUniform1i(glGetUniformLocation(skybox.glProgram, "skybox"), 0);
-	glActiveTexture(GL_TEXTURE0 + 0);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.cubemap_texture);
-	glBindVertexArray(skybox.skyboxVAO);
-	glDrawArrays(GL_QUADS, 0, 24);
-	glBindVertexArray(0);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
-	glUseProgram(0);
-	glDepthMask(GL_TRUE);
-	 
-	//Projection = glm::perspective(45.0f, (float)WIDTH / (float)HEIGHT, 0.1f, 1000.0f);
-	//View = glm::mat4(1.0f);
-	
-	//View = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 1));
-	//View = glm::rotate(View, 0.5f, glm::vec3(0.0f, 1.0f, 0.0f));
-	// render teapot
-	Model = glm::mat4(0);
-	//Model = glm::rotate(Model, .667f, glm::vec3(0.0f, 1.0f, 0.0f));
-	//Model = glm::rotate(Model, .667f, glm::vec3(1.0f, 0.0f, 0.0f));
-	//Model = glm::rotate(Model, .667f, glm::vec3(0.0f, 0.0f, 1.0f));
-	Model = glm::translate(View, glm::vec3(0.0f, 0.0f, -2.0f));
-	Model = glm::scale(Model, glm::vec3(0.5f, 0.5f, 0.5f));
-	glm::vec3 light_position = glm::vec3(0.0f, 100.0f, 100.0f);
-	glUseProgram(sphere.programID);
-	glUniform3f(sphere.light_position1, light_position.x, light_position.y, light_position.z);
-	glUniformMatrix4fv(sphere.Projection1, 1, GL_FALSE, glm::value_ptr(Projection));
-	glUniformMatrix4fv(sphere.View1, 1, GL_FALSE, glm::value_ptr(View));
-	glUniformMatrix4fv(sphere.Model1, 1, GL_FALSE, glm::value_ptr(Model));
-	glUniform1i(glGetUniformLocation(sphere.programID, "cubemap"), 0);
-	glActiveTexture(GL_TEXTURE0 + 0);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.cubemap_texture);
-
-	sphere.render();
-	
 	//drawCube();
-
+	
 	glutSwapBuffers();
 
 	// Extend  gray image.
@@ -645,7 +660,7 @@ void createProgram(GLuint& glProgram, GLuint& glShaderV, GLuint& glShaderF, cons
 	glAttachShader(glProgram, glShaderV);
 	glAttachShader(glProgram, glShaderF);
 	glLinkProgram(glProgram);
-	glUseProgram(glProgram);
+	//glUseProgram(glProgram);
 
 	int  vlength, flength, plength;
 	char vlog[2048], flog[2048], plog[2048];
@@ -712,12 +727,10 @@ void setupCubeMap(GLuint& texture, Mat &xpos, Mat &xneg, Mat &ypos, Mat &yneg, M
 }
 
 int main(int argc, char** argv) {
-	/*
 	while (base.fileExists(baseName + to_string(imgID + 1) + imgformat)) {
 		base.Compare(baseName + to_string(imgID) + imgformat, baseName + to_string(imgID + 1) + imgformat);
 		imgID++;
 	}
-	*/
 
 	glutInit(&argc, argv);
 	//glutInitDisplayMode(GLUT_SINGLE);
@@ -738,17 +751,20 @@ int main(int argc, char** argv) {
 
 	glewInit();
 
+	imgTotal = imgID - 1;
+	imgID = 1;
 
-	//initGL(300, 300);
-	//base.LoadImg("test.png");
+	base.LoadImg(baseName + to_string(imgID) + imgformat);
+
+	for (int i = 0; i < imgTotal; i++) {
+		base.LoadImg(baseName + to_string(i + 2) + imgformat);
+	}
+
+	initGL(WIDTH, HEIGHT);
 
 	// set our viewport, clear color and depth, and enable depth testing
-	glViewport(0, 0, WIDTH, HEIGHT);
-	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-	glClearDepth(1.0f);
-	glEnable(GL_DEPTH_TEST);
-	glDepthFunc(GL_LEQUAL);
-
+	//glViewport(0, 0, WIDTH, HEIGHT);
+	
 	skybox.SetBuffers();
 
 	// cubemap
@@ -776,7 +792,7 @@ int main(int argc, char** argv) {
 	sphere.programID = glProgram1;
 
 	sphere.setupBufferObjects();
-	
+
 	glutMainLoop();
 
 	return 0;
