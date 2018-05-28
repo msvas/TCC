@@ -10,7 +10,7 @@ out vec3 TexCoords;
 
 void main()
 {
-	mat4 MVP = Projection * View * Model;
+	mat4 MVP = Projection * Model;
 	gl_Position = MVP * vec4(VertexPosition, 1.0);
 
     TexCoords = VertexPosition;
