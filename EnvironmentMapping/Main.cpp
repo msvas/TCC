@@ -103,7 +103,7 @@ int Main::LoadImg(string imgName) {
 		glBindTexture(GL_TEXTURE_2D, texid);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image.cols, image.rows, 0, GL_BGR, GL_UNSIGNED_BYTE, image.data);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		image.release();
 
 		textures.push_back(texid);
@@ -330,7 +330,7 @@ void initGL(int w, int h)
 {
 	glViewport(0, 0, w, h); // use a screen size of WIDTH x HEIGHT
 	glDepthFunc(GL_NEVER);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_BLEND);
 	//glEnable(GL_LIGHTING);
 
@@ -402,14 +402,46 @@ void drawImage(GLuint texture, float translatex, float translatey, float min = -
 	cout << "Drawing image " << texture << " with " << translatex << ", " << translatey << ", " << min << ", " << max << endl;
 
 	// Enable blending
-	//glEnable(GL_BLEND);
-	//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+
+	float vertices[] = {
+		min + translatex, max + translatey, 0, 0,
+		min + translatex, min + translatey, 0, 1,
+		max + translatex, min + translatey, 1, 1,
+		max + translatex, max + translatey, 1, 0
+	};
+
+	GLuint vao, vbo;
+
+	// vertexarray
+	glGenVertexArrays(1, &(vao));
+	glBindVertexArray(vao);
+
+	glGenBuffers(1, &(vbo));
+	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(0 * sizeof(float)));
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+	glEnableVertexAttribArray(1);
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+	glBindVertexArray(0);
 
 	glEnable(GL_TEXTURE_2D);
-	//glUseProgram(glTransparency);
+	glUseProgram(glTransparency);
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, texture);
-	//glUniform1i(glGetUniformLocation(glTransparency, "texture1"), 0);
+	glBindVertexArray(vao);
+	glUniform1i(glGetUniformLocation(glTransparency, "texture1"), 0);
+	glDrawArrays(GL_QUADS, 0, 4);
+	glBindVertexArray(0);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	/*
 	glBegin(GL_QUADS);
 	glTexCoord2i(0, 0);
 	glVertex2f(min + translatex, max + translatey);
@@ -420,6 +452,7 @@ void drawImage(GLuint texture, float translatex, float translatey, float min = -
 	glTexCoord2i(1, 0);
 	glVertex2f(max + translatex, max + translatey);
 	glEnd();
+	*/
 	glDisable(GL_TEXTURE_2D);
 }
 
