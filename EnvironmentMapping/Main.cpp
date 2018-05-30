@@ -36,6 +36,7 @@ struct Vector3
 };
 
 bool renderBG = true;
+bool skyspheremode = false;
 
 // camera movement variables
 float cam_angle = 0.0f;
@@ -48,6 +49,7 @@ float x = 0.0f, z = 5.0f;
 // end of camera movement variables
 
 cObj sphere("models/liver.obj");
+cObj skysphere("models/sphere3.obj");
 
 glm::mat4 Projection;
 glm::mat4 View;
@@ -60,6 +62,7 @@ string imgformat = ".png";
 int imagesTotal = 6;
 
 GLuint glTransparency;
+GLuint skyspheretex;
 
 class Main {
 	public:
@@ -89,8 +92,11 @@ bool Main::fileExists(string fileName)
 }
 
 int Main::LoadImg(string imgName) {
-	Mat image = imread(imgName, IMREAD_UNCHANGED);
+	Mat imageaux = imread(imgName, IMREAD_UNCHANGED);
 	GLuint texid;
+
+	Mat image = Mat(imageaux.rows - 10, imageaux.cols, imageaux.type(), imageaux.data);
+	//Mat cropped = GetImgPiece(image, 0, 0, image.cols - 10, image.rows - 10);
 
 	if (image.empty()) {
 		cout << "image empty" << endl;
@@ -441,18 +447,6 @@ void drawImage(GLuint texture, float translatex, float translatey, float min = -
 	glBindVertexArray(0);
 	glBindTexture(GL_TEXTURE_2D, 0);
 
-	/*
-	glBegin(GL_QUADS);
-	glTexCoord2i(0, 0);
-	glVertex2f(min + translatex, max + translatey);
-	glTexCoord2i(0, 1);
-	glVertex2f(min + translatex, min + translatey);
-	glTexCoord2i(1, 1);
-	glVertex2f(max + translatex, min + translatey);
-	glTexCoord2i(1, 0);
-	glVertex2f(max + translatex, max + translatey);
-	glEnd();
-	*/
 	glDisable(GL_TEXTURE_2D);
 }
 
@@ -596,6 +590,39 @@ void setupCubeMap(GLuint& texture, Mat &xpos, Mat &xneg, Mat &ypos, Mat &yneg, M
 	glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, GL_RGB, zneg.cols, zneg.rows, 0, GL_BGR, GL_UNSIGNED_BYTE, zneg.data);
 }
 
+GLuint LoadTexture(string filename) {
+	GLuint texid;
+
+	Mat image = imread(filename);
+
+	glGenTextures(1, &texid);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, texid);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image.cols, image.rows, 0, GL_BGR, GL_UNSIGNED_BYTE, image.data);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	return texid;
+}
+
+void DrawSkysphere(GLuint texture) {
+	//Set up sky texture
+	glEnable(GL_TEXTURE_2D);
+	glEnable(GL_DEPTH_TEST);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	cout << "t: " << texture << endl;
+	GLUquadricObj *qobj = gluNewQuadric();
+	gluQuadricOrientation(qobj, GLU_INSIDE);
+	gluQuadricNormals(qobj, GLU_SMOOTH);
+	gluQuadricTexture(qobj, GL_TRUE);
+
+	glRotatef(90, 1.0f, 0.0f, 0.0f);  //Important!
+	//glRotatef(rotation, 0.0, 0.0, 1.0);
+	//rotation += 0.02;
+	gluSphere(qobj, 5, 32, 32);
+}
+
 void displayMe(void) {
 	float min = -1, max = 1;
 	float order = 0;
@@ -643,6 +670,10 @@ void displayMe(void) {
 		}
 
 		//imshow("inpainted", inpainted);
+
+		Mat crop = GetImgPiece(inpainted, 0, 0, 512, 512);
+		imwrite("cropped.jpg", crop);
+		skyspheretex = LoadTexture("cropped.jpg");
 
 		int xsize = floor(inpainted.cols / 4);
 		int ysize = floor(inpainted.rows / 3);
@@ -697,7 +728,7 @@ void displayMe(void) {
 		renderBG = false;
 	} 
 	else {
-		gluLookAt(x, 1.0f, z, x + lx, 1.0f, z + lz, 0.0f, 1.0f, 0.0f);
+		View =  glm::lookAt(glm::vec3(x, 0.0f, z), glm::vec3(x + lx, 0.0f, z + lz), glm::vec3(0.0f, 1.0f, 0.0f));
 
 		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 		glClearDepth(1.0f);
@@ -710,10 +741,10 @@ void displayMe(void) {
 		// skybox will be drawn first, so disallow writing into depth buffer
 		glDepthMask(GL_FALSE);
 		glUseProgram(skybox.glProgram);
-		View = glm::rotate(View, deltaAngle, glm::vec3(0.0f, 1.0f, 0.0f));
-		Model = glm::mat4();
-		Model = glm::translate(View, glm::vec3(0.0f, 0.0f, 0.0f));
-		Model = glm::scale(Model, glm::vec3(0.5f, 0.5f, 0.5f));
+		//View = glm::rotate(View, deltaAngle, glm::vec3(0.0f, 1.0f, 0.0f));
+		Model = glm::mat4(1.0f);
+		Model = glm::scale(Model, glm::vec3(600.0f, 600.0f, 600.0f));
+		Model = glm::translate(Model, glm::vec3(0.0f, 0.0f, 0.0f));
 		Projection = glm::perspective(45.0f, (float)WIDTH / (float)HEIGHT, 0.1f, 1000.0f);
 		//View = glm::mat4(1.0f);
 		glUniformMatrix4fv(glGetUniformLocation(skybox.glProgram, "Model"), 1, GL_FALSE, glm::value_ptr(Model));   // render cube around the view position
@@ -728,20 +759,19 @@ void displayMe(void) {
 		glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
 		glUseProgram(0);
 		glDepthMask(GL_TRUE);
+		//DrawSkysphere(skyspheretex);
 		glPopMatrix();
 
 		glPushMatrix();
-		//Projection = glm::perspective(45.0f, (float)WIDTH / (float)HEIGHT, 0.1f, 1000.0f);
 		//View = glm::mat4(1.0f);
-
 		//View = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 1));
 		// render teapot
 		Model = glm::mat4(0);
 		//Model = glm::rotate(Model, .667f, glm::vec3(0.0f, 1.0f, 0.0f));
 		//Model = glm::rotate(Model, .667f, glm::vec3(1.0f, 0.0f, 0.0f));
 		//Model = glm::rotate(Model, .667f, glm::vec3(0.0f, 0.0f, 1.0f));
-		Model = glm::translate(View, glm::vec3(0.0f, 0.0f, -2.0f));
-		Model = glm::scale(Model, glm::vec3(0.1f, 0.1f, 0.1f));
+		Model = glm::translate(View, glm::vec3(0.0f, 0.0f, 0.0f));
+		Model = glm::scale(Model, glm::vec3(0.2f, 0.2f, 0.2f));
 		glm::vec3 light_position = glm::vec3(0.0f, 100.0f, 100.0f);
 		glUseProgram(sphere.programID);
 		glUniform3f(sphere.light_position1, light_position.x, light_position.y, light_position.z);
@@ -754,6 +784,23 @@ void displayMe(void) {
 
 		sphere.render();
 		glPopMatrix();
+
+		if (skyspheremode) {
+			// skysphere renderind
+			glPushMatrix();
+			Model = glm::mat4(1.0f);
+			Model = glm::translate(View, glm::vec3(0.0f, 0.0f, 0.0f));
+			Model = glm::scale(Model, glm::vec3(10.0f, 10.0f, 10.0f));
+			glUseProgram(skysphere.programID);
+			glUniformMatrix4fv(glGetUniformLocation(skysphere.programID, "Projection"), 1, GL_FALSE, glm::value_ptr(Projection));
+			glUniformMatrix4fv(glGetUniformLocation(skysphere.programID, "View"), 1, GL_FALSE, glm::value_ptr(View));
+			glUniformMatrix4fv(glGetUniformLocation(skysphere.programID, "Model"), 1, GL_FALSE, glm::value_ptr(Model));
+			glUniform1i(glGetUniformLocation(skysphere.programID, "texture1"), 0);
+			glActiveTexture(GL_TEXTURE0 + 0);
+			glBindTexture(GL_TEXTURE_2D, skyspheretex);
+			skysphere.render();
+			glPopMatrix();
+		}
 	}
 	//drawCube();
 	
@@ -865,11 +912,17 @@ int main(int argc, char** argv) {
 
 	GLuint glShaderVT, glShaderFT;
 	createProgram(glTransparency, glShaderVT, glShaderFT, "shaders/v_transparency.sh", "shaders/f_transparency.sh");
-
-	// set our viewport, clear color and depth, and enable depth testing
-	//glViewport(0, 0, WIDTH, HEIGHT);
 	
 	skybox.SetBuffers();
+
+	if (skyspheremode) {
+		GLuint glSS, glShaderVS, glShaderFS;
+		createProgram(glSS, glShaderVS, glShaderFS, "shaders/skysphere_v.sh", "shaders/skysphere_f.sh");
+		skysphere.vertex1 = glGetAttribLocation(glSS, "vertex");
+		skysphere.normal1 = glGetAttribLocation(glSS, "normal");
+		skysphere.programID = glSS;
+		skysphere.setupBufferObjects();
+	}
 
 	GLuint glShaderV, glShaderF;
 	createProgram(skybox.glProgram, glShaderV, glShaderF, "shaders/vertex.sh", "shaders/fragment.sh");
