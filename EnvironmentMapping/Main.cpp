@@ -219,9 +219,14 @@ bool Main::Compare(string img1, string img2) {
 		//imshow("Good Matches & Object detection", outImg1);
 
 		//-- Step 5: calculate Essential Matrix
-
-		double data[] = {	1189.46, 0.0, 805.49,
-							0.0, 1191.78, 597.44,
+		
+		/*
+		double data[] = { 1189.46, 0.0, 805.49,
+		0.0, 1191.78, 597.44,
+		0.0, 0.0, 1.0 };
+		*/
+		double data[] = {	3650.094775, 0.0, 2357.9,
+							0.0, 3673.4, 1273.05,
 							0.0, 0.0, 1.0 };
 		Mat K(3, 3, CV_64F, data);
 		Mat_<double> E = K.t() * F * K; //according to HZ (9.12)
@@ -231,6 +236,12 @@ bool Main::Compare(string img1, string img2) {
 
 										//cout << "Translations:" << endl;
 										//cout << trans[0] << endl;
+
+		Mat R1, R2, tr;
+		decomposeEssentialMat(E, R1, R2, tr);
+
+		cout << "Fundamental: " << F << endl;
+		cout << "Essential: " << E << endl;
 
 										//-- Step 6: calculate Rotation Matrix and Translation Vector
 		Matx34d P;
@@ -244,11 +255,23 @@ bool Main::Compare(string img1, string img2) {
 		Mat_<double> R = svd_u * Mat(W) * svd_vt; //HZ 9.19
 		Mat_<double> t = svd_u.col(2); //u3
 
+		/*
+		static bool onetime = true;
+		if (onetime) {
+			ofstream myfile;
+			myfile.open("F_and_E.txt");
+			myfile << svd_u << "\n" << svd_vt << "\n" << svd_w << "\n";
+			myfile.close();
+			onetime = false;
+		}
+		*/
+
 		Vector3 newPair;
 		newPair.x = t.at<double>(0);
 		newPair.y = t.at<double>(1);
 		newPair.z = t.at<double>(2);
 		pairDistances.push_back(newPair);
+		cout << "translation found: " << newPair.x << " " << newPair.y << endl;
 
 		tx = t.at<double>(0);
 		ty = t.at<double>(1);
@@ -412,10 +435,10 @@ void drawImage(GLuint texture, float translatex, float translatey, float min = -
 	glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
 	float vertices[] = {
-		min + translatex, max + translatey, 0, 0,
-		min + translatex, min + translatey, 0, 1,
-		max + translatex, min + translatey, 1, 1,
-		max + translatex, max + translatey, 1, 0
+		min - translatex, max + translatey, 0, 0,
+		min - translatex, min + translatey, 0, 1,
+		max - translatex, min + translatey, 1, 1,
+		max - translatex, max + translatey, 1, 0
 	};
 
 	GLuint vao, vbo;
@@ -590,13 +613,13 @@ void setupCubeMap(GLuint& texture, Mat &xpos, Mat &xneg, Mat &ypos, Mat &yneg, M
 	glTexImage2D(GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, GL_RGB, zneg.cols, zneg.rows, 0, GL_BGR, GL_UNSIGNED_BYTE, zneg.data);
 }
 
-GLuint LoadTexture(string filename) {
+GLuint LoadTexture(string filename, int unit = 0) {
 	GLuint texid;
 
 	Mat image = imread(filename);
 
 	glGenTextures(1, &texid);
-	glActiveTexture(GL_TEXTURE0);
+	glActiveTexture(GL_TEXTURE0 + unit);
 	glBindTexture(GL_TEXTURE_2D, texid);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image.cols, image.rows, 0, GL_BGR, GL_UNSIGNED_BYTE, image.data);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -626,7 +649,7 @@ void DrawSkysphere(GLuint texture) {
 void displayMe(void) {
 	float min = -1, max = 1;
 	float order = 0;
-	float originX = 0, originY = 0;
+	float originX = 0, originY = 0, lastPosX = 0, lastPosY = 0;
 
 	if (deltaMove) {
 		computePos(deltaMove);
@@ -634,7 +657,7 @@ void displayMe(void) {
 	}
 
 	min = -0.5;
-	max = min + base.sizePerImg;
+	max = 0.5;
 
 	glMatrixMode(GL_MODELVIEW);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -649,12 +672,15 @@ void displayMe(void) {
 		drawImage(base.popTex(), originX, originY, min, max, order);
 
 		for (int i = 0; i < imgTotal; i++) {
-			originX = base.pairDistances[i].x * base.sizePerImg;
-			originY = base.pairDistances[i].y * base.sizePerImg;
+			originX += -base.pairDistances[i].x * 0.25f;
+			originY += -base.pairDistances[i].y * 0.25f;
 
 			order += 1;
 			//base.LoadImg(baseName + to_string(i + 2) + imgformat);
 			drawImage(base.popTex(), originX, originY, min, max, order);
+
+			//lastPosX = originX;
+			//lastPosY = originY;
 		}
 
 		Mat wholeTex;
@@ -670,10 +696,12 @@ void displayMe(void) {
 		}
 
 		//imshow("inpainted", inpainted);
+		imwrite("reduced.jpg", reduced);
+		imwrite("inpainted.jpg", inpainted);
 
-		Mat crop = GetImgPiece(inpainted, 0, 0, 512, 512);
+		Mat crop = GetImgPiece(inpainted, 0, 0, 256, 256);
 		imwrite("cropped.jpg", crop);
-		skyspheretex = LoadTexture("cropped.jpg");
+		skyspheretex = LoadTexture("cropped.jpg", 0);
 
 		int xsize = floor(inpainted.cols / 4);
 		int ysize = floor(inpainted.rows / 3);
@@ -684,6 +712,7 @@ void displayMe(void) {
 
 		// gets the smaller one
 		int biggerpower = nextx < nexty ? nextx : nexty;
+		biggerpower = biggerpower / 2;
 
 		/*
 		Mat top = GetImgPiece(inpainted, xsize, 0, xsize, ysize);
@@ -779,6 +808,9 @@ void displayMe(void) {
 		glUniformMatrix4fv(sphere.View1, 1, GL_FALSE, glm::value_ptr(View));
 		glUniformMatrix4fv(sphere.Model1, 1, GL_FALSE, glm::value_ptr(Model));
 		glUniform1i(glGetUniformLocation(sphere.programID, "cubemap"), 0);
+		glUniform1i(glGetUniformLocation(sphere.programID, "organtex"), 1);
+		glActiveTexture(GL_TEXTURE0 + 1);
+		glBindTexture(GL_TEXTURE_2D, sphere.organtex);
 		glActiveTexture(GL_TEXTURE0 + 0);
 		glBindTexture(GL_TEXTURE_CUBE_MAP, skybox.cubemap_texture);
 
@@ -939,6 +971,8 @@ int main(int argc, char** argv) {
 	sphere.programID = glProgram1;
 
 	sphere.setupBufferObjects();
+
+	sphere.organtex = LoadTexture("textures/liver.jpg", 1);
 
 	glutMainLoop();
 

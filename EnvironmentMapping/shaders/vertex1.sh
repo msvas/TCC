@@ -10,6 +10,7 @@ out vec3 light_vector;
 out vec3 normal_vector;
 out vec3 halfway_vector;
 out vec3 texture_coord;
+out vec2 sampler_coord;
 
 void main() {
 	gl_Position = Projection * View * Model * vec4(vertex, 1.0);
@@ -20,5 +21,6 @@ void main() {
 	light_vector = normalize((View * vec4(light_position, 1.0)).xyz - v.xyz);
 	normal_vector = (inverse(transpose(View * Model)) * vec4(normal1, 0.0)).xyz;
 	texture_coord = (inverse(transpose(Model))        * vec4(normal1, 0.0)).xyz;
+	sampler_coord = (inverse(transpose(Model))        * vec4(normal1, 0.0)).xy;
         halfway_vector = light_vector + normalize(-v.xyz);
 }

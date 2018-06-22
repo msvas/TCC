@@ -15,23 +15,23 @@ void CalibrateCamera() {
 	vector<Point3f> objectCorners;
 	vector<vector<Point3f>> objectPoints;
 	vector<vector<Point2f>> imagePoints;
-	Size patternsize(8, 6);
+	Size patternsize(9, 6);
 	Size imageSize;
 	Mat cameraMatrix;
 	Mat distCoeffs;
 	Mat viewGray;
 	Mat frame;
 
-	vector<string> filelist = { "calib_example/left01.jpg",
-								"calib_example/left02.jpg",
-								"calib_example/left03.jpg",
-								"calib_example/left04.jpg",
-								"calib_example/left05.jpg",
-								"calib_example/left06.jpg",
-								"calib_example/left07.jpg",
-								"calib_example/left08.jpg",
-								"calib_example/left09.jpg",
-								"calib_example/left10.jpg"
+	vector<string> filelist = { "calibration/01.jpg",
+								"calibration/02.jpg",
+								"calibration/03.jpg",
+								"calibration/04.jpg",
+								"calibration/05.jpg",
+								"calibration/06.jpg",
+								"calibration/07.jpg",
+								"calibration/08.jpg",
+								"calibration/09.jpg",
+								"calibration/10.jpg"
 							};
 
 	for (int i = 0; i < patternsize.height; i++) {

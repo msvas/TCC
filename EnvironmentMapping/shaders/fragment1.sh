@@ -4,7 +4,9 @@ in vec3 normal_vector;
 in vec3 light_vector;
 in vec3 halfway_vector;
 in vec3 texture_coord;
+in vec2 sampler_coord;
 uniform samplerCube cubemap;
+uniform sampler2D organtex;
 out vec4 fragColor;
 
 void main (void) {
@@ -13,6 +15,7 @@ void main (void) {
 	vec3 halfway_vector1 = normalize(halfway_vector);
 
 	vec4 c = texture(cubemap, texture_coord);
+	vec4 o = texture(organtex, sampler_coord);
 
 	vec4 emissive_color = vec4(0.0, 1.0, 0.0, 1.0);
 	vec4 ambient_color  = vec4(1.0, 1.0, 1.0, 1.0);
@@ -28,10 +31,10 @@ void main (void) {
 	bool facing = d > 0.0;
 
 	fragColor = emissive_color * emissive_contribution +
-		    ambient_color  * ambient_contribution  * c +
-		    diffuse_color  * diffuse_contribution  * c * max(d, 0) +
+		    ambient_color  * ambient_contribution  * (o) +
+		    diffuse_color  * diffuse_contribution  * (o) * max(d, 0) +
                     (facing ?
-			specular_color * specular_contribution * c * pow(dot(normal1, halfway_vector1), 80.0) :
+			specular_color * specular_contribution * (o) * pow(dot(normal1, halfway_vector1), 80.0) :
 			vec4(0.0, 0.0, 0.0, 0.0));
 	fragColor.a = 1.0;
 }

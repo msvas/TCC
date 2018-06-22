@@ -85,6 +85,7 @@ class cObj {
 		GLint Model1;
 		GLint View1;
 		GLint light_position1;
+		GLuint organtex;
 };
 
 #endif
